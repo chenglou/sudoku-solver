@@ -71,33 +71,40 @@ print(f"Train: {len(train_puzzles)}, Test: {len(test_puzzles)} (difficulty={df['
 
 # Prepare training data
 x_train = torch.stack([encode_puzzle(p) for p in train_puzzles])  # (n_train, 81, 10)
-# For loss: gather all holes across batch
-all_holes = []  # (batch_idx, cell_idx)
+# For loss: gather all holes across batch (vectorized indexing)
+hole_batch_idx = []
+hole_cell_idx = []
 all_targets = []
 for b, (p, s) in enumerate(zip(train_puzzles, train_solutions)):
     for i, (pc, sc) in enumerate(zip(p, s)):
         if pc == '.':
-            all_holes.append((b, i))
+            hole_batch_idx.append(b)
+            hole_cell_idx.append(i)
             all_targets.append(int(sc) - 1)
+hole_batch_idx = torch.tensor(hole_batch_idx)
+hole_cell_idx = torch.tensor(hole_cell_idx)
 all_targets = torch.tensor(all_targets)
 
 # Model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = SudokuTransformer().to(device)
+model = torch.compile(model)
 x_train = x_train.to(device)
+hole_batch_idx = hole_batch_idx.to(device)
+hole_cell_idx = hole_cell_idx.to(device)
 all_targets = all_targets.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-print(f"Total empty cells in train: {len(all_holes)}")
+print(f"Total empty cells in train: {len(hole_batch_idx)}")
 print(f"\nTraining on {device}...")
 for step in range(steps):
     model.train()
     optimizer.zero_grad()
 
     logits = model(x_train)  # (n_train, 81, 9)
-    # Gather logits for all holes
-    logits_holes = torch.stack([logits[b, i] for b, i in all_holes])  # (num_holes, 9)
+    # Gather logits for all holes (vectorized)
+    logits_holes = logits[hole_batch_idx, hole_cell_idx]  # (num_holes, 9)
     loss = F.cross_entropy(logits_holes, all_targets)
 
     loss.backward()
