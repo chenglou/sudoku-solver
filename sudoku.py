@@ -11,6 +11,7 @@ d_ff = 512
 n_layers = 6
 lr = 1e-3
 steps = 1000
+n_train = 100
 
 class SudokuTransformer(nn.Module):
     def __init__(self):
@@ -57,39 +58,43 @@ def get_targets(puzzle_str, solution_str):
             targets.append(int(s) - 1)  # 0-8
     return torch.tensor(holes), torch.tensor(targets)
 
-# Load one puzzle
 df = pd.read_csv("data/sudoku-3m.csv", nrows=10000)
-sample = df[df['difficulty'] == df['difficulty'].min()].iloc[1]
-puzzle = sample['puzzle']
-solution = sample['solution']
+df = df[df['difficulty'] == df['difficulty'].min()].head(n_train)
+puzzles = df['puzzle'].tolist()
+solutions = df['solution'].tolist()
 
-print("Training on single puzzle:")
-print_sudoku(puzzle)
-print("Solution:")
-print_sudoku(solution)
+print(f"Training on {len(puzzles)} puzzles (difficulty={df['difficulty'].iloc[0]})")
 
-# Prepare data
-x = encode_puzzle(puzzle).unsqueeze(0)  # (1, 81, 10)
-holes, targets = get_targets(puzzle, solution)
-print(f"\nEmpty cells: {len(holes)}")
+# Prepare batched data
+x = torch.stack([encode_puzzle(p) for p in puzzles])  # (batch_size, 81, 10)
+# For loss: gather all holes across batch
+all_holes = []  # (batch_idx, cell_idx)
+all_targets = []
+for b, (p, s) in enumerate(zip(puzzles, solutions)):
+    for i, (pc, sc) in enumerate(zip(p, s)):
+        if pc == '.':
+            all_holes.append((b, i))
+            all_targets.append(int(sc) - 1)
+all_targets = torch.tensor(all_targets)
 
 # Model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = SudokuTransformer().to(device)
 x = x.to(device)
-targets = targets.to(device)
-holes = holes.to(device)
+all_targets = all_targets.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
+print(f"Total empty cells across batch: {len(all_holes)}")
 print(f"\nTraining on {device}...")
 for step in range(steps):
     model.train()
     optimizer.zero_grad()
 
-    logits = model(x)  # (1, 81, 9)
-    logits_holes = logits[0, holes]  # (num_holes, 9)
-    loss = F.cross_entropy(logits_holes, targets)
+    logits = model(x)  # (batch_size, 81, 9)
+    # Gather logits for all holes
+    logits_holes = torch.stack([logits[b, i] for b, i in all_holes])  # (num_holes, 9)
+    loss = F.cross_entropy(logits_holes, all_targets)
 
     loss.backward()
     optimizer.step()
@@ -97,24 +102,28 @@ for step in range(steps):
     if step % 100 == 0 or step == steps - 1:
         with torch.no_grad():
             preds = logits_holes.argmax(dim=-1)
-            acc = (preds == targets).float().mean().item()
+            acc = (preds == all_targets).float().mean().item()
         print(f"Step {step:4d} | Loss: {loss.item():.4f} | Acc: {acc:.2%}")
 
-# Final prediction
+# Test on all puzzles used for training
 model.eval()
 with torch.no_grad():
-    logits = model(x)
-    preds = logits[0].argmax(dim=-1)  # (81,)
+    logits = model(x)  # (batch_size, 81, 9)
+    preds = logits.argmax(dim=-1)  # (batch_size, 81)
 
-    # Build predicted solution
-    pred_solution = list(puzzle)
-    for i in range(81):
-        if puzzle[i] == '.':
-            pred_solution[i] = str(preds[i].item() + 1)
-    pred_solution = ''.join(pred_solution)
+    correct = 0
+    for b, (puzzle, solution) in enumerate(zip(puzzles, solutions)):
+        pred_solution = list(puzzle)
+        for i in range(81):
+            if puzzle[i] == '.':
+                pred_solution[i] = str(preds[b, i].item() + 1)
+        pred_solution = ''.join(pred_solution)
+        if pred_solution == solution:
+            correct += 1
+        else:
+            print(f"\nPuzzle {b} WRONG:")
+            print_sudoku(pred_solution)
+            print("Expected:")
+            print_sudoku(solution)
 
-print("\nPredicted solution:")
-print_sudoku(pred_solution)
-print("\nGround truth:")
-print_sudoku(solution)
-print(f"\nCorrect: {pred_solution == solution}")
+print(f"\n{correct}/{len(puzzles)} puzzles solved correctly")
