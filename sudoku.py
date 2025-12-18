@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pandas as pd
-from debug import print_sudoku
+# from debug import print_sudoku
 
 class Muon(torch.optim.Optimizer):
     """Muon optimizer - Momentum Orthogonalized by Newton-Schulz."""
@@ -146,28 +146,11 @@ print(f"Train: {len(train_puzzles)}, Test: {len(test_puzzles)} (difficulty={df['
 
 # Prepare training data
 x_train = torch.stack([encode_puzzle(p) for p in train_puzzles])  # (n_train, 81, 10)
-# Per-puzzle hole indices and targets
-train_holes = []  # list of (cell_indices, targets) per puzzle
-for p, s in zip(train_puzzles, train_solutions):
-    cell_idx = []
-    targets = []
-    for i, (pc, sc) in enumerate(zip(p, s)):
-        if pc == '.':
-            cell_idx.append(i)
-            targets.append(int(sc) - 1)
-    train_holes.append((torch.tensor(cell_idx), torch.tensor(targets)))
+train_holes = [get_targets(p, s) for p, s in zip(train_puzzles, train_solutions)]
 
 # Prepare test data
 x_test = torch.stack([encode_puzzle(p) for p in test_puzzles])  # (n_test, 81, 10)
-test_holes = []
-for p, s in zip(test_puzzles, test_solutions):
-    cell_idx = []
-    targets = []
-    for i, (pc, sc) in enumerate(zip(p, s)):
-        if pc == '.':
-            cell_idx.append(i)
-            targets.append(int(sc) - 1)
-    test_holes.append((torch.tensor(cell_idx), torch.tensor(targets)))
+test_holes = [get_targets(p, s) for p, s in zip(test_puzzles, test_solutions)]
 
 # Model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -175,6 +158,12 @@ model = SudokuTransformer().to(device)
 model = torch.compile(model)
 x_train = x_train.to(device)
 x_test = x_test.to(device)
+
+# Move hole tensors to device and precompute counts
+train_holes = [(h[0].to(device), h[1].to(device)) for h in train_holes]
+train_holes_count = [len(h[0]) for h in train_holes]
+test_holes = [(h[0].to(device), h[1].to(device)) for h in test_holes]
+test_holes_count = [len(h[0]) for h in test_holes]
 
 # Split params: Muon for ≥2D weights, AdamW for biases/norms/embeddings
 muon_params = []
@@ -202,16 +191,12 @@ def evaluate_test():
             x_batch = x_test[start:end]
             logits = model(x_batch)
 
-            # Gather holes for this batch
-            hole_b, hole_c, targets = [], [], []
-            for i, idx in enumerate(range(start, end)):
-                cell_idx, tgt = test_holes[idx]
-                hole_b.extend([i] * len(cell_idx))
-                hole_c.extend(cell_idx.tolist())
-                targets.extend(tgt.tolist())
-            hole_b = torch.tensor(hole_b, device=device)
-            hole_c = torch.tensor(hole_c, device=device)
-            targets = torch.tensor(targets, device=device)
+            # Gather holes for this batch using torch ops
+            batch_range = list(range(start, end))
+            hole_c = torch.cat([test_holes[i][0] for i in batch_range])
+            targets = torch.cat([test_holes[i][1] for i in batch_range])
+            counts = torch.tensor([test_holes_count[i] for i in batch_range], device=device)
+            hole_b = torch.repeat_interleave(torch.arange(len(batch_range), device=device), counts)
 
             logits_holes = logits[hole_b, hole_c]
             total_loss += F.cross_entropy(logits_holes, targets, reduction='sum').item()
@@ -245,16 +230,12 @@ for step in range(steps):
 
     logits = model(x_batch)  # (batch_size, 81, 9)
 
-    # Gather holes for this batch
-    hole_b, hole_c, targets = [], [], []
-    for i, idx in enumerate(batch_idx.tolist()):
-        cell_idx, tgt = train_holes[idx]
-        hole_b.extend([i] * len(cell_idx))
-        hole_c.extend(cell_idx.tolist())
-        targets.extend(tgt.tolist())
-    hole_b = torch.tensor(hole_b, device=device)
-    hole_c = torch.tensor(hole_c, device=device)
-    targets = torch.tensor(targets, device=device)
+    # Gather holes for this batch using torch ops
+    batch_list = batch_idx.tolist()
+    hole_c = torch.cat([train_holes[i][0] for i in batch_list])
+    targets = torch.cat([train_holes[i][1] for i in batch_list])
+    counts = torch.tensor([train_holes_count[i] for i in batch_list], device=device)
+    hole_b = torch.repeat_interleave(torch.arange(len(batch_list), device=device), counts)
 
     logits_holes = logits[hole_b, hole_c]
     loss = F.cross_entropy(logits_holes, targets)
