@@ -72,6 +72,21 @@ train_solutions = df['solution'].tolist()[:n_train]
 test_puzzles = df['puzzle'].tolist()[n_train:]
 test_solutions = df['solution'].tolist()[n_train:]
 
+# Override test data in TEST_MODE
+if False:
+    # Take a real solution and punch N holes at the start
+    n_holes = 5
+    dummy_solution = train_solutions[0]
+    dummy_puzzle = "." * n_holes + dummy_solution[n_holes:]
+    assert len(dummy_puzzle) == 81, f"Puzzle length {len(dummy_puzzle)} != 81"
+    test_puzzles = [dummy_puzzle]
+    test_solutions = [dummy_solution]
+    n_test = 1
+    print(f"TEST MODE: 1 puzzle with {n_holes} holes")
+    print(f"  Puzzle:   {dummy_puzzle[:9]}...")
+    print(f"  Solution: {dummy_solution[:9]}...")
+    print(f"  Holes at positions 0-{n_holes-1} -> expect '{dummy_solution[:n_holes]}'")
+
 print(f"Train: {len(train_puzzles)}, Test: {len(test_puzzles)} (difficulty={df['difficulty'].iloc[0]})")
 
 # Prepare training data
