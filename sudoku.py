@@ -6,6 +6,61 @@ import torch.nn.functional as F
 import pandas as pd
 from debug import print_sudoku
 
+class Muon(torch.optim.Optimizer):
+    """Muon optimizer - Momentum Orthogonalized by Newton-Schulz."""
+    def __init__(self, params, lr=0.02, momentum=0.95, nesterov=True, ns_steps=5):
+        defaults = dict(lr=lr, momentum=momentum, nesterov=nesterov, ns_steps=ns_steps)
+        super().__init__(params, defaults)
+
+    def step(self):
+        for group in self.param_groups:
+            lr = group['lr']
+            momentum = group['momentum']
+            nesterov = group['nesterov']
+            ns_steps = group['ns_steps']
+
+            for p in group['params']:
+                if p.grad is None:
+                    continue
+                g = p.grad
+                state = self.state[p]
+
+                if 'momentum_buffer' not in state:
+                    state['momentum_buffer'] = torch.zeros_like(g)
+                buf = state['momentum_buffer']
+                buf.mul_(momentum).add_(g)
+
+                if nesterov:
+                    g = g.add(buf, alpha=momentum)
+                else:
+                    g = buf
+
+                # Newton-Schulz orthogonalization for 2D+ params
+                if g.ndim >= 2:
+                    g = self._newton_schulz(g, ns_steps)
+                    # Scale by sqrt of matrix dimensions
+                    g = g * max(1, g.size(0) / g.size(1)) ** 0.5
+
+                p.data.add_(g, alpha=-lr)
+
+    @staticmethod
+    def _newton_schulz(G, steps=5):
+        """Approximate orthogonalization via Newton-Schulz iteration."""
+        # Reshape to 2D for orthogonalization
+        shape = G.shape
+        if G.ndim > 2:
+            G = G.view(G.size(0), -1)
+
+        # Normalize
+        G = G / (G.norm() + 1e-7)
+
+        # Newton-Schulz iteration: X_{k+1} = 1.5 * X_k - 0.5 * X_k @ X_k^T @ X_k
+        for _ in range(steps):
+            A = G @ G.T
+            G = 1.5 * G - 0.5 * A @ G
+
+        return G.view(shape)
+
 # Hyperparameters
 d_model = 128
 n_heads = 4
@@ -121,7 +176,17 @@ model = torch.compile(model)
 x_train = x_train.to(device)
 x_test = x_test.to(device)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+# Split params: Muon for ≥2D weights, AdamW for biases/norms/embeddings
+muon_params = []
+adamw_params = []
+for name, param in model.named_parameters():
+    if param.ndim >= 2:
+        muon_params.append(param)
+    else:
+        adamw_params.append(param)
+
+optimizer_muon = Muon(muon_params, lr=0.02, momentum=0.95)
+optimizer_adamw = torch.optim.AdamW(adamw_params, lr=lr, betas=(0.9, 0.95))
 
 def evaluate_test():
     """Evaluate on test set, return (loss, accuracy, puzzles_solved)."""
@@ -171,7 +236,8 @@ print(f"Total empty cells in train: {total_holes}")
 print(f"\nTraining on {device}...")
 for step in range(steps):
     model.train()
-    optimizer.zero_grad()
+    optimizer_muon.zero_grad()
+    optimizer_adamw.zero_grad()
 
     # Sample mini-batch
     batch_idx = torch.randperm(n_train)[:batch_size]
@@ -194,7 +260,8 @@ for step in range(steps):
     loss = F.cross_entropy(logits_holes, targets)
 
     loss.backward()
-    optimizer.step()
+    optimizer_muon.step()
+    optimizer_adamw.step()
 
     if step % 100 == 0 or step == steps - 1:
         with torch.no_grad():
