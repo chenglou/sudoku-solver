@@ -65,7 +65,7 @@ class Muon(torch.optim.Optimizer):
 d_model = 128
 n_heads = 4
 d_ff = 512
-n_layers = 6
+n_layers = 10
 lr = 1e-3
 steps = 100000
 n_train = 100000
