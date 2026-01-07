@@ -1,10 +1,9 @@
-# this is a one-shot transformer model for solving sudoku puzzles. Just a forward pass taking in the original puzzle and outputting the solution
-# it predicts each cell at ~75% accuracy (random would be 11%). But with those odds, it still fails to solve any puzzle since a puzzle has many empty cells
+# Iterative transformer for solving Sudoku puzzles
+# Key components: iterative refinement (16 steps), intermediate supervision, structured pos encoding
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pandas as pd
-# from debug import print_sudoku
 
 class Muon(torch.optim.Optimizer):
     """Muon optimizer - Momentum Orthogonalized by Newton-Schulz."""
@@ -65,18 +64,29 @@ class Muon(torch.optim.Optimizer):
 d_model = 128
 n_heads = 4
 d_ff = 512
-n_layers = 10
+n_layers = 4
+n_iterations = 16  # Number of iterative refinement steps
 lr = 1e-3
 steps = 100000
 n_train = 100000
 n_test = 1000
-batch_size = 512
+batch_size = 128
+
+# Precompute row/col/box indices for all 81 cells
+ROW_IDX = torch.tensor([i // 9 for i in range(81)])
+COL_IDX = torch.tensor([i % 9 for i in range(81)])
+BOX_IDX = torch.tensor([(i // 9 // 3) * 3 + (i % 9 // 3) for i in range(81)])
 
 class SudokuTransformer(nn.Module):
     def __init__(self):
         super().__init__()
-        self.input_proj = nn.Linear(10, d_model)
-        self.pos_embed = nn.Parameter(torch.randn(81, d_model) * 0.02)
+        # Input: 10 (puzzle) + 9 (current predictions fed back)
+        self.input_proj = nn.Linear(10 + 9, d_model)
+
+        # Structured positional embeddings: row, col, box
+        self.row_embed = nn.Embedding(9, d_model)
+        self.col_embed = nn.Embedding(9, d_model)
+        self.box_embed = nn.Embedding(9, d_model)
 
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=d_model,
@@ -88,13 +98,36 @@ class SudokuTransformer(nn.Module):
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
         self.output_head = nn.Linear(d_model, 9)
 
-    def forward(self, x):
-        # x: (batch, 81, 10)
-        x = self.input_proj(x)  # (batch, 81, d_model)
-        x = x + self.pos_embed  # add positional encoding
-        x = self.transformer(x)  # (batch, 81, d_model)
-        x = self.output_head(x)  # (batch, 81, 9)
-        return x
+    def forward(self, x, return_all=False):
+        # x: (batch, 81, 10) - original puzzle encoding
+        batch_size = x.size(0)
+        device = x.device
+
+        # Get positional embeddings (same for all batches)
+        row_idx = ROW_IDX.to(device)
+        col_idx = COL_IDX.to(device)
+        box_idx = BOX_IDX.to(device)
+        pos_embed = self.row_embed(row_idx) + self.col_embed(col_idx) + self.box_embed(box_idx)  # (81, d_model)
+
+        # Initialize predictions as uniform (no info yet)
+        preds = torch.zeros(batch_size, 81, 9, device=device)
+
+        all_logits = []
+        # Iterative refinement
+        for _ in range(n_iterations):
+            # Concatenate puzzle encoding with current predictions
+            x_in = torch.cat([x, preds], dim=-1)  # (batch, 81, 19)
+            h = self.input_proj(x_in)  # (batch, 81, d_model)
+            h = h + pos_embed  # add structured positional encoding
+            h = self.transformer(h)  # (batch, 81, d_model)
+            logits = self.output_head(h)  # (batch, 81, 9)
+            preds = F.softmax(logits, dim=-1)  # update predictions for next iteration
+            if return_all:
+                all_logits.append(logits)
+
+        if return_all:
+            return all_logits  # list of (batch, 81, 9) for each iteration
+        return logits  # return final logits
 
 def encode_puzzle(puzzle_str):
     """Convert puzzle string to (81, 10) tensor."""
@@ -219,6 +252,14 @@ def evaluate_test():
 total_holes = sum(len(h[0]) for h in train_holes)
 print(f"Total empty cells in train: {total_holes}")
 print(f"\nTraining on {device}...")
+
+# File logging
+log_file = open("train_log.txt", "w")
+def log(msg):
+    print(msg)
+    log_file.write(msg + "\n")
+    log_file.flush()
+
 for step in range(steps):
     model.train()
     optimizer_muon.zero_grad()
@@ -228,7 +269,7 @@ for step in range(steps):
     batch_idx = torch.randperm(n_train)[:batch_size]
     x_batch = x_train[batch_idx]  # (batch_size, 81, 10)
 
-    logits = model(x_batch)  # (batch_size, 81, 9)
+    all_logits = model(x_batch, return_all=True)  # list of (batch_size, 81, 9)
 
     # Gather holes for this batch using torch ops
     batch_list = batch_idx.tolist()
@@ -237,8 +278,12 @@ for step in range(steps):
     counts = torch.tensor([train_holes_count[i] for i in batch_list], device=device)
     hole_b = torch.repeat_interleave(torch.arange(len(batch_list), device=device), counts)
 
-    logits_holes = logits[hole_b, hole_c]
-    loss = F.cross_entropy(logits_holes, targets)
+    # Sum loss over all iterations (intermediate supervision)
+    loss = 0
+    for logits in all_logits:
+        logits_holes = logits[hole_b, hole_c]
+        loss = loss + F.cross_entropy(logits_holes, targets)
+    loss = loss / len(all_logits)  # average across iterations
 
     loss.backward()
     optimizer_muon.step()
@@ -246,17 +291,20 @@ for step in range(steps):
 
     if step % 100 == 0 or step == steps - 1:
         with torch.no_grad():
-            preds = logits_holes.argmax(dim=-1)
+            # Use final iteration's logits for accuracy
+            final_logits_holes = all_logits[-1][hole_b, hole_c]
+            preds = final_logits_holes.argmax(dim=-1)
             train_acc = (preds == targets).float().mean().item()
         train_loss = loss.item()
 
         # Evaluate on test set every 1000 steps
         if step % 1000 == 0 or step == steps - 1:
             test_loss, test_acc, puzzles_solved = evaluate_test()
-            print(f"Step {step:5d} | Train Loss: {train_loss:.4f} Acc: {train_acc:.2%} | Test Loss: {test_loss:.4f} Acc: {test_acc:.2%} | Solved: {puzzles_solved}/{n_test}")
+            log(f"Step {step:5d} | Train Loss: {train_loss:.4f} Acc: {train_acc:.2%} | Test Loss: {test_loss:.4f} Acc: {test_acc:.2%} | Solved: {puzzles_solved}/{n_test}")
         else:
-            print(f"Step {step:5d} | Train Loss: {train_loss:.4f} Acc: {train_acc:.2%}")
+            log(f"Step {step:5d} | Train Loss: {train_loss:.4f} Acc: {train_acc:.2%}")
 
 # Final test evaluation
 test_loss, test_acc, puzzles_solved = evaluate_test()
-print(f"\nFinal Test: Loss {test_loss:.4f} | Acc {test_acc:.1%} | {puzzles_solved}/{n_test} puzzles solved")
+log(f"\nFinal Test: Loss {test_loss:.4f} | Acc {test_acc:.1%} | {puzzles_solved}/{n_test} puzzles solved")
+log_file.close()
