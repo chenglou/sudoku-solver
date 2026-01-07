@@ -1,6 +1,6 @@
-# Recurrent Relational Network for Sudoku
-# Based on "Recurrent Relational Networks" (Palm et al., 2018)
-# With intermediate supervision
+# RRN ABLATION: Add prediction feedback (like transformer)
+# Feeds softmax predictions back each step, similar to transformer's iterative refinement
+# Keeps: intermediate supervision, structured pos encoding
 
 import torch
 import torch.nn as nn
@@ -16,38 +16,33 @@ n_train = 100000
 n_test = 1000
 batch_size = 64
 
+ROW_IDX = torch.tensor([i // 9 for i in range(81)])
+COL_IDX = torch.tensor([i % 9 for i in range(81)])
+BOX_IDX = torch.tensor([(i // 9 // 3) * 3 + (i % 9 // 3) for i in range(81)])
+
 def build_sudoku_edges():
-    """Build edge list for Sudoku graph."""
     edges = []
     for i in range(81):
         row_i, col_i = i // 9, i % 9
         box_i = (row_i // 3) * 3 + (col_i // 3)
-
         for j in range(81):
             if i == j:
                 continue
             row_j, col_j = j // 9, j % 9
             box_j = (row_j // 3) * 3 + (col_j // 3)
-
             if row_i == row_j or col_i == col_j or box_i == box_j:
                 edges.append((j, i))
-
     return torch.tensor(edges, dtype=torch.long).t()
 
 class MLP(nn.Module):
-    """3-layer MLP with ReLU activations."""
     def __init__(self, in_dim, hidden_dim, out_dim):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(in_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
+            nn.Linear(in_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
             nn.Linear(hidden_dim, out_dim),
         )
-
     def forward(self, x):
         return self.net(x)
 
@@ -55,46 +50,46 @@ class SudokuRRN(nn.Module):
     def __init__(self, edge_index):
         super().__init__()
         self.register_buffer('edge_index', edge_index)
-
-        # Input projection
-        self.input_proj = nn.Linear(10, hidden_size)
-
-        # Simple learned positional embedding (graph structure handles row/col/box)
-        self.pos_embed = nn.Parameter(torch.randn(81, hidden_size) * 0.02)
-
-        # Message function
+        # ABLATION: Input now includes predictions (10 + 9 = 19)
+        self.input_proj = nn.Linear(10 + 9, hidden_size)
+        self.row_embed = nn.Embedding(9, hidden_size)
+        self.col_embed = nn.Embedding(9, hidden_size)
+        self.box_embed = nn.Embedding(9, hidden_size)
         self.message_mlp = MLP(hidden_size * 2, hidden_size, hidden_size)
-
-        # Node update
         self.node_mlp = MLP(hidden_size * 3, hidden_size, hidden_size)
         self.layer_norm = nn.LayerNorm(hidden_size)
-
-        # Output head
         self.output_head = nn.Linear(hidden_size, 9)
 
     def forward(self, x, return_all=False):
+        # x: (batch, 81, 10) - original puzzle encoding
         batch_size, num_nodes, _ = x.shape
         device = x.device
 
-        # Project input and add positional embedding
-        x_embed = self.input_proj(x) + self.pos_embed
+        row_idx = ROW_IDX.to(device)
+        col_idx = COL_IDX.to(device)
+        box_idx = BOX_IDX.to(device)
+        pos_embed = self.row_embed(row_idx) + self.col_embed(col_idx) + self.box_embed(box_idx)
 
-        # Initialize hidden state
-        h = x_embed
-
-        # Edge indices
         src, dst = self.edge_index
-
         all_logits = []
-        # Run recurrent steps
-        for _ in range(num_steps):
+
+        # ABLATION: Initialize predictions as zeros (like transformer)
+        preds = torch.zeros(batch_size, num_nodes, 9, device=device)
+        h = None
+
+        for step_idx in range(num_steps):
+            # ABLATION: Concatenate puzzle encoding with current predictions
+            x_with_preds = torch.cat([x, preds], dim=-1)  # (batch, 81, 19)
+            x_embed = self.input_proj(x_with_preds) + pos_embed
+
+            # Initialize h from x_embed on first step, otherwise keep updating
+            if h is None:
+                h = x_embed
+
             # Message passing
             h_src = h[:, src]
             h_dst = h[:, dst]
-            msg_input = torch.cat([h_src, h_dst], dim=-1)
-            messages = self.message_mlp(msg_input)
-
-            # Aggregate messages
+            messages = self.message_mlp(torch.cat([h_src, h_dst], dim=-1))
             aggregated = torch.zeros(batch_size, num_nodes, hidden_size, device=device)
             dst_expanded = dst.unsqueeze(0).unsqueeze(-1).expand(batch_size, -1, hidden_size)
             aggregated.scatter_add_(1, dst_expanded, messages)
@@ -104,14 +99,16 @@ class SudokuRRN(nn.Module):
             h = h + self.node_mlp(node_input)
             h = self.layer_norm(h)
 
-            # Compute output for this step (for intermediate supervision)
+            # Compute output and update predictions for next iteration
+            logits = self.output_head(h)
+            preds = F.softmax(logits, dim=-1)  # ABLATION: Feed predictions back
+
             if return_all:
-                logits = self.output_head(h)
                 all_logits.append(logits)
 
         if return_all:
             return all_logits
-        return self.output_head(h)
+        return logits
 
 def encode_puzzle(puzzle_str):
     x = torch.zeros(81, 10)
@@ -130,21 +127,18 @@ def get_targets(puzzle_str, solution_str):
             targets.append(int(s) - 1)
     return torch.tensor(holes), torch.tensor(targets)
 
-# Build graph
 edge_index = build_sudoku_edges()
 print(f"Sudoku graph: 81 nodes, {edge_index.shape[1]} edges")
 
-# Load data
 df = pd.read_csv("data/sudoku-3m.csv")
 easy_df = df[df['difficulty'] == df['difficulty'].min()]
-print(f"Puzzles at easiest difficulty: {len(easy_df)} (need {n_train + n_test})")
+print(f"Puzzles at easiest difficulty: {len(easy_df)}")
 df = easy_df.head(n_train + n_test)
 
 train_puzzles = df['puzzle'].tolist()[:n_train]
 train_solutions = df['solution'].tolist()[:n_train]
 test_puzzles = df['puzzle'].tolist()[n_train:]
 test_solutions = df['solution'].tolist()[n_train:]
-
 print(f"Train: {len(train_puzzles)}, Test: {len(test_puzzles)}")
 
 x_train = torch.stack([encode_puzzle(p) for p in train_puzzles])
@@ -162,7 +156,6 @@ train_holes_count = [len(h[0]) for h in train_holes]
 test_holes = [(h[0].to(device), h[1].to(device)) for h in test_holes]
 test_holes_count = [len(h[0]) for h in test_holes]
 
-# Use AdamW only (Muon doesn't work well with message passing gradients)
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr, betas=(0.9, 0.95))
 
 def evaluate_test():
@@ -192,56 +185,42 @@ def evaluate_test():
                     puzzles_solved += 1
     return total_loss / total_cells, total_correct / total_cells, puzzles_solved
 
-print(f"\nRRN with intermediate supervision")
+print(f"\nRRN ABLATION: With prediction feedback (like transformer)")
 print(f"Training on {device}...")
 
-log_file = open("rrn_loss_log.txt", "w")
+log_file = open("rrn_ablation_pred_feedback.log", "w")
 log_file.write("step,train_loss,train_acc,test_loss,test_acc,solved\n")
 
 for step in range(steps):
     model.train()
     optimizer.zero_grad()
-
     batch_idx = torch.randperm(n_train)[:batch_size]
     x_batch = x_train[batch_idx]
-
     all_logits = model(x_batch, return_all=True)
-
     batch_list = batch_idx.tolist()
     hole_c = torch.cat([train_holes[i][0] for i in batch_list])
     targets = torch.cat([train_holes[i][1] for i in batch_list])
     counts = torch.tensor([train_holes_count[i] for i in batch_list], device=device)
     hole_b = torch.repeat_interleave(torch.arange(len(batch_list), device=device), counts)
-
-    # Intermediate supervision: sum loss over all steps
-    loss = 0
-    for logits in all_logits:
-        logits_holes = logits[hole_b, hole_c]
-        loss = loss + F.cross_entropy(logits_holes, targets)
-    loss = loss / len(all_logits)
-
+    loss = sum(F.cross_entropy(logits[hole_b, hole_c], targets) for logits in all_logits) / len(all_logits)
     loss.backward()
     torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
     optimizer.step()
 
     if step % 100 == 0 or step == steps - 1:
         with torch.no_grad():
-            final_logits_holes = all_logits[-1][hole_b, hole_c]
-            preds = final_logits_holes.argmax(dim=-1)
+            preds = all_logits[-1][hole_b, hole_c].argmax(dim=-1)
             train_acc = (preds == targets).float().mean().item()
         train_loss = loss.item()
-
         if step % 1000 == 0 or step == steps - 1:
             test_loss, test_acc, puzzles_solved = evaluate_test()
             print(f"Step {step:5d} | Train Loss: {train_loss:.4f} Acc: {train_acc:.2%} | Test Loss: {test_loss:.4f} Acc: {test_acc:.2%} | Solved: {puzzles_solved}/{n_test}")
             log_file.write(f"{step},{train_loss:.6f},{train_acc:.6f},{test_loss:.6f},{test_acc:.6f},{puzzles_solved}\n")
-            log_file.flush()
         else:
             print(f"Step {step:5d} | Train Loss: {train_loss:.4f} Acc: {train_acc:.2%}")
             log_file.write(f"{step},{train_loss:.6f},{train_acc:.6f},,,\n")
-            log_file.flush()
+        log_file.flush()
 
 log_file.close()
-
 test_loss, test_acc, puzzles_solved = evaluate_test()
 print(f"\nFinal Test: Loss {test_loss:.4f} | Acc {test_acc:.1%} | {puzzles_solved}/{n_test} puzzles solved")
