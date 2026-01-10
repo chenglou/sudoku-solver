@@ -136,8 +136,7 @@ def encode_puzzle(puzzle_str):
         if c == '.':
             x[i, 0] = 1  # empty indicator
         else:
-            digit = int(c) - 1  # 0-8
-            x[i, 1 + digit] = 1  # one-hot digit
+            x[i, int(c)] = 1  # one-hot digit (index 1-9)
     return x
 
 def get_targets(puzzle_str, solution_str):
