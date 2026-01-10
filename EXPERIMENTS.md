@@ -78,11 +78,32 @@ h = proj_digit(puzzle[:, 1:]) + proj_pred(preds) + empty_embed(is_empty)
 ```
 Three separate projections added together.
 
-**Results:** 96.0% acc, 817 solved (peak at step 96k)
+**Results:**
+- Original run: 96.0% acc, 817 solved
+- Rerun: 91.1% acc, 555 solved (peak 93.78%/719)
 
-**Finding:** Project-then-add significantly outperforms concat (+3.2% acc, +174 puzzles). Separating projections gives the model more flexibility to learn different representations for given digits vs predictions vs empty indicators.
+**Finding:** Original result was likely a lucky run. Rerun shows high variance and similar performance to baseline. No reliable improvement from separate projections.
 
-**Note:** Training was more unstable (fluctuating results) but converged to better final performance.
+---
+
+## Experiment: Project-then-Concat Input
+
+**File:** `exp_proj_concat.py`
+
+**Hypothesis:** Would concatenating separate projections (instead of adding) work better?
+
+**Change:** Project to smaller dimensions that sum to d_model, then concatenate:
+```python
+h = torch.cat([
+    proj_digit(digit_onehot),  # 9 -> 64
+    proj_pred(preds),          # 9 -> 48
+    empty_embed(is_empty)      # 2 -> 16
+], dim=-1)                     # total: 128
+```
+
+**Results:** 92.1% acc, 582 solved (peak 92.64%/636)
+
+**Finding:** Similar to project-then-add rerun. No clear advantage over simple concat baseline. Both fancy projection schemes show high training variance without reliable gains.
 
 ---
 
@@ -150,7 +171,8 @@ Weight sharing acts as regularization - forcing the model to learn ONE general i
 | No iteration | 64.3% | 0 | Iteration critical |
 | No intermediate | 87.0% | 428 | Intermediate helps |
 | No sudoku pos | 88.4% | 409 | Structure helps |
-| Project-add | 96.0% | 817 | Better than concat |
+| Project-add | 91.1% | 555 | No reliable gain (original 96% was fluke) |
+| Project-concat | 92.1% | 582 | No reliable gain |
 | Middle1 (2×2) | 84.2% | 162 | Depth > specialization |
 | Middle2 (4×1) | 72.7% | 0 | 1 layer insufficient |
 | Unrolled (16×4) | 90.1% | 581 | Weight sharing helps |
@@ -165,8 +187,10 @@ Weight sharing acts as regularization - forcing the model to learn ONE general i
 
 3. **Weight sharing actively helps** - Not just "fine" - it's beneficial! Unrolled model with 16x params performed worse. Weight sharing acts as regularization, forcing a single general iterative function.
 
-4. **Project-then-add beats concat** - Best result so far. Separate projections for different input types.
+4. **Simple concat input is fine** - Fancy projection schemes (project-then-add, project-then-concat) showed high variance and no reliable gains. Simpler is better.
 
 5. **Intermediate supervision helps** - Gradient signal to all iterations stabilizes training.
 
 6. **Structured pos encoding helps** - But may be redundant with sparse attention (see RRN experiments).
+
+7. **Training has high variance** - Results can vary significantly between runs. Always rerun to verify improvements.
