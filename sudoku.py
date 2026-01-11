@@ -5,6 +5,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pandas as pd
 
+# Speed optimizations
+torch.set_float32_matmul_precision('high')  # Use TF32 on Ampere+ GPUs
+
 class Muon(torch.optim.Optimizer):
     """Muon optimizer - Momentum Orthogonalized by Newton-Schulz."""
     def __init__(self, params, lr=0.02, momentum=0.95, nesterov=True, ns_steps=5):
@@ -217,7 +220,7 @@ def evaluate_test():
     total_cells = 0
     puzzles_solved = 0
 
-    with torch.no_grad():
+    with torch.no_grad(), torch.autocast('cuda', dtype=torch.bfloat16):
         for start in range(0, n_test, batch_size):
             end = min(start + batch_size, n_test)
             x_batch = x_test[start:end]
@@ -268,21 +271,22 @@ for step in range(steps):
     batch_idx = torch.randperm(n_train)[:batch_size]
     x_batch = x_train[batch_idx]  # (batch_size, 81, 10)
 
-    all_logits = model(x_batch, return_all=True)  # list of (batch_size, 81, 9)
+    with torch.autocast('cuda', dtype=torch.bfloat16):
+        all_logits = model(x_batch, return_all=True)  # list of (batch_size, 81, 9)
 
-    # Gather holes for this batch using torch ops
-    batch_list = batch_idx.tolist()
-    hole_c = torch.cat([train_holes[i][0] for i in batch_list])
-    targets = torch.cat([train_holes[i][1] for i in batch_list])
-    counts = torch.tensor([train_holes_count[i] for i in batch_list], device=device)
-    hole_b = torch.repeat_interleave(torch.arange(len(batch_list), device=device), counts)
+        # Gather holes for this batch using torch ops
+        batch_list = batch_idx.tolist()
+        hole_c = torch.cat([train_holes[i][0] for i in batch_list])
+        targets = torch.cat([train_holes[i][1] for i in batch_list])
+        counts = torch.tensor([train_holes_count[i] for i in batch_list], device=device)
+        hole_b = torch.repeat_interleave(torch.arange(len(batch_list), device=device), counts)
 
-    # Sum loss over all iterations (intermediate supervision)
-    loss = 0
-    for logits in all_logits:
-        logits_holes = logits[hole_b, hole_c]
-        loss = loss + F.cross_entropy(logits_holes, targets)
-    loss = loss / len(all_logits)  # average across iterations
+        # Sum loss over all iterations (intermediate supervision)
+        loss = 0
+        for logits in all_logits:
+            logits_holes = logits[hole_b, hole_c]
+            loss = loss + F.cross_entropy(logits_holes, targets)
+        loss = loss / len(all_logits)  # average across iterations
 
     loss.backward()
     optimizer_muon.step()
