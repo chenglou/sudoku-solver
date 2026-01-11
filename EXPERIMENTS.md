@@ -163,6 +163,20 @@ Weight sharing acts as regularization - forcing the model to learn ONE general i
 
 ---
 
+## Experiment: Sinusoidal Positional Encoding
+
+**File:** `exp_sinusoidal_pos.py`
+
+**Hypothesis:** Would fixed sinusoidal encodings work as well as learned embeddings for row/col/box positions?
+
+**Change:** Replace learned `nn.Embedding(9, d_model)` for row/col/box with fixed sinusoidal encodings using the standard formula: `PE(pos, 2i) = sin(pos / 10000^(2i/d_model))`.
+
+**Results:** 50.1% acc, 0 solved
+
+**Finding:** Complete failure. Standard sinusoidal encoding is designed for long sequences (hundreds+ positions) where the frequencies create distinguishable patterns. For positions 0-8, the sin/cos values are too similar to differentiate. Learned embeddings are much better for small, discrete position spaces.
+
+---
+
 ## Summary Table
 
 | Experiment | Acc | Solved | Key Finding |
@@ -176,6 +190,7 @@ Weight sharing acts as regularization - forcing the model to learn ONE general i
 | Middle1 (2×2) | 84.2% | 162 | Depth > specialization |
 | Middle2 (4×1) | 72.7% | 0 | 1 layer insufficient |
 | Unrolled (16×4) | 90.1% | 581 | Weight sharing helps |
+| Sinusoidal pos | 50.1% | 0 | Learned embeddings >> sinusoidal for small spaces |
 
 ---
 
@@ -193,4 +208,6 @@ Weight sharing acts as regularization - forcing the model to learn ONE general i
 
 6. **Structured pos encoding helps** - But may be redundant with sparse attention (see RRN experiments).
 
-7. **Training has high variance** - Results can vary significantly between runs. Always rerun to verify improvements.
+7. **Learned embeddings >> sinusoidal for small spaces** - Standard sinusoidal encoding fails catastrophically for positions 0-8. The frequencies are designed for long sequences; for small discrete spaces, learned embeddings adapt much better.
+
+8. **Training has high variance** - Results can vary significantly between runs. Always rerun to verify improvements.
