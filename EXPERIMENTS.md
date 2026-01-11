@@ -177,6 +177,35 @@ Weight sharing acts as regularization - forcing the model to learn ONE general i
 
 ---
 
+## Experiment: Batch Size Scaling
+
+**Files:** `sudoku.py` (BS=128), `sudoku_bs256.py`, `sudoku_bs512.py`
+
+**Hypothesis:** Larger batch sizes process more samples in same wall-clock time. Does this improve results?
+
+**Change:** Scale batch size while keeping 100k steps constant. This means:
+- BS=128: 12.8M samples
+- BS=256: 25.6M samples (2x data, ~1.1x wall time)
+- BS=512: 51.2M samples (4x data, ~2.2x wall time)
+
+Also added bf16 mixed precision + TF32 for ~2.4x speedup.
+
+**Results:**
+
+| Batch Size | Final Acc | Final Solved | Peak Solved | Samples | Time |
+|------------|-----------|--------------|-------------|---------|------|
+| 128 | 92.2% | 537 | 679 | 12.8M | ~2.3h |
+| 256 | 95.8% | 833 | **897** | 25.6M | ~2.5h |
+| 512 | 94.6% | 672 | 866 | 51.2M | ~5h |
+
+**Finding:** BS=256 is the sweet spot:
+- Best peak (897 solved) and best final (833 solved)
+- Only ~10% slower than BS=128 for 2x the samples
+- BS=512 shows diminishing returns - more data but high variance and lower final results
+- Larger batches may benefit from LR scaling (not tested)
+
+---
+
 ## Summary Table
 
 | Experiment | Acc | Solved | Key Finding |
@@ -191,6 +220,8 @@ Weight sharing acts as regularization - forcing the model to learn ONE general i
 | Middle2 (4×1) | 72.7% | 0 | 1 layer insufficient |
 | Unrolled (16×4) | 90.1% | 581 | Weight sharing helps |
 | Sinusoidal pos | 50.1% | 0 | Learned embeddings >> sinusoidal for small spaces |
+| BS=256 + bf16 | **95.8%** | **833** | Larger batch + more samples helps (peak 897) |
+| BS=512 + bf16 | 94.6% | 672 | Diminishing returns (peak 866) |
 
 ---
 
@@ -211,3 +242,5 @@ Weight sharing acts as regularization - forcing the model to learn ONE general i
 7. **Learned embeddings >> sinusoidal for small spaces** - Standard sinusoidal encoding fails catastrophically for positions 0-8. The frequencies are designed for long sequences; for small discrete spaces, learned embeddings adapt much better.
 
 8. **Training has high variance** - Results can vary significantly between runs. Always rerun to verify improvements.
+
+9. **Batch size 256 is sweet spot** - BS=256 with 100k steps (25.6M samples) achieves best results (897 peak solved). Larger BS=512 shows diminishing returns with more variance.
