@@ -1,11 +1,14 @@
 # Recurrent Relational Network for Sudoku
 # Based on "Recurrent Relational Networks" (Palm et al., 2018)
-# With intermediate supervision
+# With intermediate supervision, bf16 mixed precision
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pandas as pd
+
+# Enable TF32 for faster matmuls on Ampere+ GPUs
+torch.set_float32_matmul_precision('high')
 
 # Hyperparameters
 hidden_size = 128
@@ -94,8 +97,8 @@ class SudokuRRN(nn.Module):
             msg_input = torch.cat([h_src, h_dst], dim=-1)
             messages = self.message_mlp(msg_input)
 
-            # Aggregate messages
-            aggregated = torch.zeros(batch_size, num_nodes, hidden_size, device=device)
+            # Aggregate messages (match dtype for mixed precision)
+            aggregated = torch.zeros(batch_size, num_nodes, hidden_size, device=device, dtype=messages.dtype)
             dst_expanded = dst.unsqueeze(0).unsqueeze(-1).expand(batch_size, -1, hidden_size)
             aggregated.scatter_add_(1, dst_expanded, messages)
 
@@ -168,7 +171,7 @@ optimizer = torch.optim.AdamW(model.parameters(), lr=lr, betas=(0.9, 0.95))
 def evaluate_test():
     model.eval()
     total_loss, total_correct, total_cells, puzzles_solved = 0, 0, 0, 0
-    with torch.no_grad():
+    with torch.no_grad(), torch.amp.autocast('cuda', dtype=torch.bfloat16):
         for start in range(0, n_test, batch_size):
             end = min(start + batch_size, n_test)
             x_batch = x_test[start:end]
@@ -192,8 +195,11 @@ def evaluate_test():
                     puzzles_solved += 1
     return total_loss / total_cells, total_correct / total_cells, puzzles_solved
 
-print(f"\nRRN with intermediate supervision")
+print(f"\nRRN with intermediate supervision + bf16")
 print(f"Training on {device}...")
+
+# Mixed precision scaler
+scaler = torch.amp.GradScaler('cuda')
 
 log_file = open("rrn_loss_log.txt", "w")
 log_file.write("step,train_loss,train_acc,test_loss,test_acc,solved\n")
@@ -205,24 +211,28 @@ for step in range(steps):
     batch_idx = torch.randperm(n_train)[:batch_size]
     x_batch = x_train[batch_idx]
 
-    all_logits = model(x_batch, return_all=True)
+    # Mixed precision forward pass
+    with torch.amp.autocast('cuda', dtype=torch.bfloat16):
+        all_logits = model(x_batch, return_all=True)
 
-    batch_list = batch_idx.tolist()
-    hole_c = torch.cat([train_holes[i][0] for i in batch_list])
-    targets = torch.cat([train_holes[i][1] for i in batch_list])
-    counts = torch.tensor([train_holes_count[i] for i in batch_list], device=device)
-    hole_b = torch.repeat_interleave(torch.arange(len(batch_list), device=device), counts)
+        batch_list = batch_idx.tolist()
+        hole_c = torch.cat([train_holes[i][0] for i in batch_list])
+        targets = torch.cat([train_holes[i][1] for i in batch_list])
+        counts = torch.tensor([train_holes_count[i] for i in batch_list], device=device)
+        hole_b = torch.repeat_interleave(torch.arange(len(batch_list), device=device), counts)
 
-    # Intermediate supervision: sum loss over all steps
-    loss = 0
-    for logits in all_logits:
-        logits_holes = logits[hole_b, hole_c]
-        loss = loss + F.cross_entropy(logits_holes, targets)
-    loss = loss / len(all_logits)
+        # Intermediate supervision: sum loss over all steps
+        loss = 0
+        for logits in all_logits:
+            logits_holes = logits[hole_b, hole_c]
+            loss = loss + F.cross_entropy(logits_holes, targets)
+        loss = loss / len(all_logits)
 
-    loss.backward()
+    scaler.scale(loss).backward()
+    scaler.unscale_(optimizer)
     torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-    optimizer.step()
+    scaler.step(optimizer)
+    scaler.update()
 
     if step % 100 == 0 or step == steps - 1:
         with torch.no_grad():
