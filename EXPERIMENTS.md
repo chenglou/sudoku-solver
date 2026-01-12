@@ -206,6 +206,42 @@ Also added bf16 mixed precision + TF32 for ~2.4x speedup.
 
 ---
 
+## Experiment: SAM (Sharpness-Aware Minimization)
+
+**Files:** `exp_sam.py` (BS=512), `exp_sam_bs256.py` (BS=256)
+
+**Hypothesis:** Large batch training finds sharp minima that generalize poorly (the "generalization gap"). SAM explicitly seeks flat minima by optimizing for worst-case loss in a weight neighborhood. Can SAM close the gap for large batches?
+
+**Background:** The generalization gap is well-documented (Keskar et al., 2017). Large batches give precise gradients that navigate into sharp valleys. Small batches have noisy gradients that can't enter narrow valleys, naturally finding flat minima. SAM addresses this directly:
+
+```python
+# SAM: optimize for worst-case loss in neighborhood
+1. Compute gradient g at weights w
+2. Perturb: w' = w + rho * g / ||g||
+3. Compute gradient g' at perturbed w'
+4. Update w using g' (not g)
+```
+
+**Results:**
+
+| Config | Peak Solved | Final Solved | Final Acc | Time |
+|--------|-------------|--------------|-----------|------|
+| Vanilla BS=256 | 897 | 833 | 95.8% | ~2.5h |
+| Vanilla BS=512 | 866 | 672 | 94.6% | ~5h |
+| **SAM BS=256** | **958** | 930 | 98.1% | ~5.1h |
+| **SAM BS=512** | **959** | 948 | 98.6% | ~6.3h |
+
+**Finding:** SAM dramatically improves results:
+- SAM BS=512 peak: 959 vs vanilla's 866 (+93 puzzles!)
+- SAM BS=512 final: 948 vs vanilla's 672 (+276 puzzles!)
+- SAM closes the generalization gap completely - BS=512 now matches BS=256
+- SAM pushes past vanilla's ceiling entirely (959 vs 897 best vanilla)
+- Overhead is ~25% for BS=512 (6.3h vs 5h), acceptable for massive gains
+
+**Why it works:** SAM prevents the optimizer from settling into sharp minima by penalizing regions where small weight perturbations spike the loss. This gives large-batch training the generalization benefits of small-batch noise, without sacrificing throughput.
+
+---
+
 ## Summary Table
 
 | Experiment | Acc | Solved | Key Finding |
@@ -220,8 +256,10 @@ Also added bf16 mixed precision + TF32 for ~2.4x speedup.
 | Middle2 (4×1) | 72.7% | 0 | 1 layer insufficient |
 | Unrolled (16×4) | 90.1% | 581 | Weight sharing helps |
 | Sinusoidal pos | 50.1% | 0 | Learned embeddings >> sinusoidal for small spaces |
-| BS=256 + bf16 | **95.8%** | **833** | Larger batch + more samples helps (peak 897) |
+| BS=256 + bf16 | 95.8% | 833 | Larger batch + more samples helps (peak 897) |
 | BS=512 + bf16 | 94.6% | 672 | Diminishing returns (peak 866) |
+| SAM + BS=256 | 98.1% | 930 | SAM finds flat minima (peak 958) |
+| **SAM + BS=512** | **98.6%** | **948** | **Best result!** SAM closes generalization gap (peak 959) |
 
 ---
 
@@ -243,4 +281,6 @@ Also added bf16 mixed precision + TF32 for ~2.4x speedup.
 
 8. **Training has high variance** - Results can vary significantly between runs. Always rerun to verify improvements.
 
-9. **Batch size 256 is sweet spot** - BS=256 with 100k steps (25.6M samples) achieves best results (897 peak solved). Larger BS=512 shows diminishing returns with more variance.
+9. **Batch size 256 was sweet spot** - Before SAM, BS=256 achieved best vanilla results (897 peak). Larger BS=512 showed the generalization gap - more data but worse results.
+
+10. **SAM closes the generalization gap** - Sharpness-Aware Minimization lets large batches find flat minima. SAM + BS=512 achieves 959 peak (vs vanilla's 897 best), with 948 final (vs 833). The ~25% overhead is worth the massive gains. SAM is now our best configuration.

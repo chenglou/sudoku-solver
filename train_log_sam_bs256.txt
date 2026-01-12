@@ -1,0 +1,1003 @@
+Step     0 | Train Loss: 2.8702 Acc: 11.30% | Test Loss: 2.8565 Acc: 11.32% | Solved: 0/1000
+Step   100 | Train Loss: 2.2115 Acc: 10.68%
+Step   200 | Train Loss: 2.1993 Acc: 11.66%
+Step   300 | Train Loss: 1.8963 Acc: 21.23%
+Step   400 | Train Loss: 1.4092 Acc: 39.44%
+Step   500 | Train Loss: 1.2186 Acc: 50.84%
+Step   600 | Train Loss: 1.1185 Acc: 55.96%
+Step   700 | Train Loss: 1.0707 Acc: 59.12%
+Step   800 | Train Loss: 1.0465 Acc: 60.20%
+Step   900 | Train Loss: 0.9997 Acc: 63.76%
+Step  1000 | Train Loss: 0.9804 Acc: 63.89% | Test Loss: 0.7812 Acc: 70.29% | Solved: 9/1000
+Step  1100 | Train Loss: 0.9858 Acc: 63.95%
+Step  1200 | Train Loss: 0.9444 Acc: 66.49%
+Step  1300 | Train Loss: 0.9344 Acc: 67.39%
+Step  1400 | Train Loss: 0.9101 Acc: 68.12%
+Step  1500 | Train Loss: 0.9307 Acc: 66.32%
+Step  1600 | Train Loss: 0.8922 Acc: 69.68%
+Step  1700 | Train Loss: 0.8993 Acc: 68.99%
+Step  1800 | Train Loss: 0.9063 Acc: 69.50%
+Step  1900 | Train Loss: 0.8581 Acc: 71.39%
+Step  2000 | Train Loss: 0.8619 Acc: 71.54% | Test Loss: 0.6484 Acc: 78.01% | Solved: 125/1000
+Step  2100 | Train Loss: 0.8733 Acc: 69.64%
+Step  2200 | Train Loss: 0.8996 Acc: 71.08%
+Step  2300 | Train Loss: 0.8588 Acc: 72.29%
+Step  2400 | Train Loss: 0.8348 Acc: 73.28%
+Step  2500 | Train Loss: 0.8484 Acc: 71.61%
+Step  2600 | Train Loss: 0.8574 Acc: 73.75%
+Step  2700 | Train Loss: 0.8116 Acc: 73.97%
+Step  2800 | Train Loss: 0.8418 Acc: 71.22%
+Step  2900 | Train Loss: 0.8224 Acc: 73.25%
+Step  3000 | Train Loss: 0.8188 Acc: 73.28% | Test Loss: 0.6017 Acc: 80.53% | Solved: 191/1000
+Step  3100 | Train Loss: 0.8093 Acc: 73.80%
+Step  3200 | Train Loss: 0.8016 Acc: 76.39%
+Step  3300 | Train Loss: 0.7924 Acc: 76.41%
+Step  3400 | Train Loss: 0.8106 Acc: 76.14%
+Step  3500 | Train Loss: 0.8026 Acc: 74.89%
+Step  3600 | Train Loss: 0.7911 Acc: 76.12%
+Step  3700 | Train Loss: 0.7747 Acc: 76.74%
+Step  3800 | Train Loss: 0.7621 Acc: 78.06%
+Step  3900 | Train Loss: 0.7953 Acc: 76.90%
+Step  4000 | Train Loss: 0.7617 Acc: 77.79% | Test Loss: 0.5100 Acc: 85.35% | Solved: 378/1000
+Step  4100 | Train Loss: 0.7516 Acc: 79.68%
+Step  4200 | Train Loss: 0.7498 Acc: 79.81%
+Step  4300 | Train Loss: 0.7489 Acc: 78.44%
+Step  4400 | Train Loss: 0.7396 Acc: 80.25%
+Step  4500 | Train Loss: 0.7304 Acc: 80.16%
+Step  4600 | Train Loss: 0.7306 Acc: 80.04%
+Step  4700 | Train Loss: 0.7465 Acc: 80.63%
+Step  4800 | Train Loss: 0.7661 Acc: 77.41%
+Step  4900 | Train Loss: 0.7742 Acc: 78.72%
+Step  5000 | Train Loss: 0.7168 Acc: 80.03% | Test Loss: 0.4178 Acc: 87.96% | Solved: 469/1000
+Step  5100 | Train Loss: 0.7344 Acc: 79.52%
+Step  5200 | Train Loss: 0.7548 Acc: 78.70%
+Step  5300 | Train Loss: 0.7146 Acc: 81.19%
+Step  5400 | Train Loss: 0.7913 Acc: 77.61%
+Step  5500 | Train Loss: 0.7280 Acc: 81.83%
+Step  5600 | Train Loss: 0.7025 Acc: 82.10%
+Step  5700 | Train Loss: 0.7186 Acc: 81.03%
+Step  5800 | Train Loss: 0.7301 Acc: 80.18%
+Step  5900 | Train Loss: 0.7095 Acc: 81.23%
+Step  6000 | Train Loss: 0.7595 Acc: 79.79% | Test Loss: 0.3900 Acc: 88.77% | Solved: 498/1000
+Step  6100 | Train Loss: 0.7322 Acc: 79.99%
+Step  6200 | Train Loss: 0.7711 Acc: 78.03%
+Step  6300 | Train Loss: 0.7641 Acc: 79.64%
+Step  6400 | Train Loss: 0.6918 Acc: 82.28%
+Step  6500 | Train Loss: 0.6818 Acc: 83.32%
+Step  6600 | Train Loss: 0.7184 Acc: 81.32%
+Step  6700 | Train Loss: 0.7253 Acc: 80.96%
+Step  6800 | Train Loss: 0.7370 Acc: 82.01%
+Step  6900 | Train Loss: 0.6955 Acc: 81.75%
+Step  7000 | Train Loss: 0.6907 Acc: 83.37% | Test Loss: 0.3574 Acc: 90.05% | Solved: 555/1000
+Step  7100 | Train Loss: 0.7115 Acc: 81.28%
+Step  7200 | Train Loss: 0.7085 Acc: 81.36%
+Step  7300 | Train Loss: 0.7061 Acc: 83.48%
+Step  7400 | Train Loss: 0.7278 Acc: 80.61%
+Step  7500 | Train Loss: 0.6993 Acc: 82.52%
+Step  7600 | Train Loss: 0.6854 Acc: 83.51%
+Step  7700 | Train Loss: 0.6940 Acc: 83.03%
+Step  7800 | Train Loss: 0.6563 Acc: 85.32%
+Step  7900 | Train Loss: 0.7046 Acc: 81.44%
+Step  8000 | Train Loss: 0.6871 Acc: 82.37% | Test Loss: 0.3616 Acc: 90.21% | Solved: 577/1000
+Step  8100 | Train Loss: 0.6478 Acc: 85.40%
+Step  8200 | Train Loss: 0.6663 Acc: 84.69%
+Step  8300 | Train Loss: 0.6919 Acc: 83.03%
+Step  8400 | Train Loss: 0.6871 Acc: 82.88%
+Step  8500 | Train Loss: 0.6559 Acc: 85.32%
+Step  8600 | Train Loss: 0.6806 Acc: 84.73%
+Step  8700 | Train Loss: 0.6850 Acc: 83.66%
+Step  8800 | Train Loss: 0.6849 Acc: 84.18%
+Step  8900 | Train Loss: 0.6702 Acc: 84.67%
+Step  9000 | Train Loss: 0.6369 Acc: 86.54% | Test Loss: 0.3238 Acc: 91.05% | Solved: 610/1000
+Step  9100 | Train Loss: 0.6377 Acc: 86.92%
+Step  9200 | Train Loss: 0.6942 Acc: 83.66%
+Step  9300 | Train Loss: 0.7034 Acc: 83.06%
+Step  9400 | Train Loss: 0.6892 Acc: 82.93%
+Step  9500 | Train Loss: 0.6607 Acc: 85.32%
+Step  9600 | Train Loss: 0.6667 Acc: 85.11%
+Step  9700 | Train Loss: 0.7227 Acc: 81.29%
+Step  9800 | Train Loss: 0.6561 Acc: 85.11%
+Step  9900 | Train Loss: 0.6424 Acc: 86.58%
+Step 10000 | Train Loss: 0.6557 Acc: 84.95% | Test Loss: 0.3242 Acc: 91.17% | Solved: 607/1000
+Step 10100 | Train Loss: 0.6889 Acc: 82.51%
+Step 10200 | Train Loss: 0.7070 Acc: 83.98%
+Step 10300 | Train Loss: 0.6784 Acc: 84.86%
+Step 10400 | Train Loss: 0.6798 Acc: 84.46%
+Step 10500 | Train Loss: 0.7700 Acc: 78.00%
+Step 10600 | Train Loss: 0.6905 Acc: 84.21%
+Step 10700 | Train Loss: 0.7237 Acc: 82.68%
+Step 10800 | Train Loss: 0.6708 Acc: 84.41%
+Step 10900 | Train Loss: 0.6514 Acc: 86.41%
+Step 11000 | Train Loss: 0.6841 Acc: 84.92% | Test Loss: 0.3375 Acc: 91.17% | Solved: 622/1000
+Step 11100 | Train Loss: 0.6767 Acc: 84.39%
+Step 11200 | Train Loss: 0.6815 Acc: 84.42%
+Step 11300 | Train Loss: 0.6813 Acc: 84.15%
+Step 11400 | Train Loss: 0.6435 Acc: 85.56%
+Step 11500 | Train Loss: 0.6456 Acc: 86.75%
+Step 11600 | Train Loss: 0.7080 Acc: 82.98%
+Step 11700 | Train Loss: 0.6680 Acc: 84.87%
+Step 11800 | Train Loss: 0.6842 Acc: 84.50%
+Step 11900 | Train Loss: 0.6669 Acc: 85.05%
+Step 12000 | Train Loss: 0.6540 Acc: 86.50% | Test Loss: 0.2844 Acc: 92.72% | Solved: 685/1000
+Step 12100 | Train Loss: 0.6770 Acc: 84.56%
+Step 12200 | Train Loss: 0.6735 Acc: 84.91%
+Step 12300 | Train Loss: 0.6599 Acc: 85.96%
+Step 12400 | Train Loss: 0.7092 Acc: 83.65%
+Step 12500 | Train Loss: 0.6634 Acc: 85.53%
+Step 12600 | Train Loss: 0.6556 Acc: 86.54%
+Step 12700 | Train Loss: 0.6746 Acc: 84.86%
+Step 12800 | Train Loss: 0.6488 Acc: 87.05%
+Step 12900 | Train Loss: 0.7151 Acc: 83.17%
+Step 13000 | Train Loss: 0.6509 Acc: 85.79% | Test Loss: 0.3206 Acc: 91.87% | Solved: 646/1000
+Step 13100 | Train Loss: 0.6263 Acc: 87.57%
+Step 13200 | Train Loss: 0.7488 Acc: 79.51%
+Step 13300 | Train Loss: 0.6459 Acc: 86.52%
+Step 13400 | Train Loss: 0.6471 Acc: 87.03%
+Step 13500 | Train Loss: 0.6526 Acc: 86.08%
+Step 13600 | Train Loss: 0.6660 Acc: 86.84%
+Step 13700 | Train Loss: 0.6946 Acc: 84.04%
+Step 13800 | Train Loss: 0.6223 Acc: 87.10%
+Step 13900 | Train Loss: 0.6492 Acc: 85.97%
+Step 14000 | Train Loss: 0.6453 Acc: 86.22% | Test Loss: 0.2676 Acc: 92.77% | Solved: 663/1000
+Step 14100 | Train Loss: 0.6320 Acc: 88.10%
+Step 14200 | Train Loss: 0.6501 Acc: 85.56%
+Step 14300 | Train Loss: 0.6345 Acc: 86.97%
+Step 14400 | Train Loss: 0.6224 Acc: 88.14%
+Step 14500 | Train Loss: 0.6426 Acc: 86.71%
+Step 14600 | Train Loss: 0.6111 Acc: 89.01%
+Step 14700 | Train Loss: 0.6668 Acc: 85.65%
+Step 14800 | Train Loss: 0.6331 Acc: 88.32%
+Step 14900 | Train Loss: 0.6466 Acc: 87.17%
+Step 15000 | Train Loss: 0.6730 Acc: 83.86% | Test Loss: 0.2751 Acc: 92.57% | Solved: 661/1000
+Step 15100 | Train Loss: 0.6712 Acc: 84.87%
+Step 15200 | Train Loss: 0.6307 Acc: 86.74%
+Step 15300 | Train Loss: 0.6805 Acc: 83.44%
+Step 15400 | Train Loss: 0.6395 Acc: 87.02%
+Step 15500 | Train Loss: 0.6455 Acc: 86.05%
+Step 15600 | Train Loss: 0.6534 Acc: 86.50%
+Step 15700 | Train Loss: 0.6372 Acc: 86.70%
+Step 15800 | Train Loss: 0.6838 Acc: 85.72%
+Step 15900 | Train Loss: 0.6546 Acc: 86.67%
+Step 16000 | Train Loss: 0.6204 Acc: 87.87% | Test Loss: 0.2539 Acc: 93.36% | Solved: 700/1000
+Step 16100 | Train Loss: 0.6528 Acc: 86.92%
+Step 16200 | Train Loss: 0.6674 Acc: 86.25%
+Step 16300 | Train Loss: 0.6153 Acc: 88.86%
+Step 16400 | Train Loss: 0.6417 Acc: 86.46%
+Step 16500 | Train Loss: 0.6745 Acc: 85.07%
+Step 16600 | Train Loss: 0.6562 Acc: 86.49%
+Step 16700 | Train Loss: 0.6502 Acc: 85.99%
+Step 16800 | Train Loss: 0.6575 Acc: 85.48%
+Step 16900 | Train Loss: 0.6720 Acc: 85.65%
+Step 17000 | Train Loss: 0.6468 Acc: 85.59% | Test Loss: 0.2717 Acc: 92.51% | Solved: 650/1000
+Step 17100 | Train Loss: 0.7182 Acc: 81.79%
+Step 17200 | Train Loss: 0.6739 Acc: 84.91%
+Step 17300 | Train Loss: 0.7653 Acc: 80.50%
+Step 17400 | Train Loss: 0.6927 Acc: 83.35%
+Step 17500 | Train Loss: 0.6387 Acc: 86.44%
+Step 17600 | Train Loss: 0.6114 Acc: 88.76%
+Step 17700 | Train Loss: 0.6666 Acc: 84.74%
+Step 17800 | Train Loss: 0.6866 Acc: 84.86%
+Step 17900 | Train Loss: 0.6007 Acc: 88.79%
+Step 18000 | Train Loss: 0.6354 Acc: 87.26% | Test Loss: 0.2353 Acc: 93.46% | Solved: 676/1000
+Step 18100 | Train Loss: 0.6532 Acc: 85.70%
+Step 18200 | Train Loss: 0.6326 Acc: 87.38%
+Step 18300 | Train Loss: 0.6449 Acc: 87.23%
+Step 18400 | Train Loss: 0.6732 Acc: 84.88%
+Step 18500 | Train Loss: 0.6444 Acc: 86.50%
+Step 18600 | Train Loss: 0.7150 Acc: 84.01%
+Step 18700 | Train Loss: 0.6567 Acc: 85.46%
+Step 18800 | Train Loss: 0.6619 Acc: 86.55%
+Step 18900 | Train Loss: 0.6751 Acc: 85.54%
+Step 19000 | Train Loss: 0.5986 Acc: 89.61% | Test Loss: 0.2097 Acc: 94.41% | Solved: 740/1000
+Step 19100 | Train Loss: 0.6493 Acc: 86.95%
+Step 19200 | Train Loss: 0.7238 Acc: 83.17%
+Step 19300 | Train Loss: 0.6166 Acc: 88.11%
+Step 19400 | Train Loss: 0.6313 Acc: 87.57%
+Step 19500 | Train Loss: 0.6539 Acc: 86.72%
+Step 19600 | Train Loss: 0.6289 Acc: 88.52%
+Step 19700 | Train Loss: 0.6768 Acc: 84.44%
+Step 19800 | Train Loss: 0.6948 Acc: 84.68%
+Step 19900 | Train Loss: 0.6306 Acc: 87.62%
+Step 20000 | Train Loss: 0.6551 Acc: 86.60% | Test Loss: 0.2058 Acc: 94.38% | Solved: 718/1000
+Step 20100 | Train Loss: 0.6285 Acc: 88.06%
+Step 20200 | Train Loss: 0.6929 Acc: 83.23%
+Step 20300 | Train Loss: 0.7214 Acc: 82.98%
+Step 20400 | Train Loss: 0.6459 Acc: 86.15%
+Step 20500 | Train Loss: 0.6389 Acc: 87.33%
+Step 20600 | Train Loss: 0.6233 Acc: 88.36%
+Step 20700 | Train Loss: 0.5970 Acc: 90.10%
+Step 20800 | Train Loss: 0.6415 Acc: 86.69%
+Step 20900 | Train Loss: 0.6542 Acc: 86.34%
+Step 21000 | Train Loss: 0.6571 Acc: 86.00% | Test Loss: 0.2447 Acc: 93.87% | Solved: 735/1000
+Step 21100 | Train Loss: 0.6115 Acc: 88.50%
+Step 21200 | Train Loss: 0.6255 Acc: 87.68%
+Step 21300 | Train Loss: 0.6323 Acc: 87.95%
+Step 21400 | Train Loss: 0.6335 Acc: 87.66%
+Step 21500 | Train Loss: 0.7051 Acc: 83.69%
+Step 21600 | Train Loss: 0.6347 Acc: 87.96%
+Step 21700 | Train Loss: 0.6124 Acc: 88.95%
+Step 21800 | Train Loss: 0.6446 Acc: 86.60%
+Step 21900 | Train Loss: 0.6281 Acc: 88.10%
+Step 22000 | Train Loss: 0.6598 Acc: 85.81% | Test Loss: 0.2202 Acc: 93.86% | Solved: 716/1000
+Step 22100 | Train Loss: 0.6059 Acc: 89.08%
+Step 22200 | Train Loss: 0.6181 Acc: 87.57%
+Step 22300 | Train Loss: 0.6493 Acc: 86.89%
+Step 22400 | Train Loss: 0.5787 Acc: 90.94%
+Step 22500 | Train Loss: 0.5764 Acc: 90.59%
+Step 22600 | Train Loss: 0.6031 Acc: 89.28%
+Step 22700 | Train Loss: 0.6594 Acc: 87.24%
+Step 22800 | Train Loss: 0.6069 Acc: 89.03%
+Step 22900 | Train Loss: 0.6372 Acc: 86.82%
+Step 23000 | Train Loss: 0.5751 Acc: 90.78% | Test Loss: 0.1928 Acc: 95.06% | Solved: 774/1000
+Step 23100 | Train Loss: 0.6330 Acc: 87.28%
+Step 23200 | Train Loss: 0.6368 Acc: 86.49%
+Step 23300 | Train Loss: 0.5969 Acc: 89.88%
+Step 23400 | Train Loss: 0.5976 Acc: 89.68%
+Step 23500 | Train Loss: 0.5975 Acc: 88.94%
+Step 23600 | Train Loss: 0.6590 Acc: 87.01%
+Step 23700 | Train Loss: 0.5979 Acc: 90.07%
+Step 23800 | Train Loss: 0.5757 Acc: 91.06%
+Step 23900 | Train Loss: 0.6237 Acc: 87.78%
+Step 24000 | Train Loss: 0.6152 Acc: 88.38% | Test Loss: 0.2101 Acc: 94.79% | Solved: 771/1000
+Step 24100 | Train Loss: 0.6257 Acc: 87.92%
+Step 24200 | Train Loss: 0.5789 Acc: 90.48%
+Step 24300 | Train Loss: 0.5763 Acc: 90.90%
+Step 24400 | Train Loss: 0.6027 Acc: 89.78%
+Step 24500 | Train Loss: 0.6263 Acc: 87.49%
+Step 24600 | Train Loss: 0.6181 Acc: 88.83%
+Step 24700 | Train Loss: 0.6092 Acc: 89.22%
+Step 24800 | Train Loss: 0.6263 Acc: 87.44%
+Step 24900 | Train Loss: 0.5738 Acc: 90.95%
+Step 25000 | Train Loss: 0.5492 Acc: 91.61% | Test Loss: 0.1488 Acc: 96.62% | Solved: 861/1000
+Step 25100 | Train Loss: 0.6573 Acc: 86.41%
+Step 25200 | Train Loss: 0.6600 Acc: 86.57%
+Step 25300 | Train Loss: 0.6377 Acc: 87.44%
+Step 25400 | Train Loss: 0.5810 Acc: 90.27%
+Step 25500 | Train Loss: 0.5934 Acc: 89.39%
+Step 25600 | Train Loss: 0.5550 Acc: 91.29%
+Step 25700 | Train Loss: 0.5948 Acc: 88.66%
+Step 25800 | Train Loss: 0.6424 Acc: 88.24%
+Step 25900 | Train Loss: 0.5541 Acc: 91.63%
+Step 26000 | Train Loss: 0.6722 Acc: 86.50% | Test Loss: 0.2502 Acc: 93.80% | Solved: 733/1000
+Step 26100 | Train Loss: 0.5757 Acc: 90.68%
+Step 26200 | Train Loss: 0.5805 Acc: 90.33%
+Step 26300 | Train Loss: 0.6816 Acc: 83.75%
+Step 26400 | Train Loss: 0.6323 Acc: 87.68%
+Step 26500 | Train Loss: 0.5884 Acc: 91.17%
+Step 26600 | Train Loss: 0.6111 Acc: 89.30%
+Step 26700 | Train Loss: 0.6497 Acc: 85.69%
+Step 26800 | Train Loss: 0.5456 Acc: 91.88%
+Step 26900 | Train Loss: 0.6035 Acc: 89.53%
+Step 27000 | Train Loss: 0.5551 Acc: 91.56% | Test Loss: 0.1676 Acc: 96.05% | Solved: 841/1000
+Step 27100 | Train Loss: 0.5771 Acc: 90.69%
+Step 27200 | Train Loss: 0.6107 Acc: 88.88%
+Step 27300 | Train Loss: 0.5896 Acc: 90.20%
+Step 27400 | Train Loss: 0.5365 Acc: 92.18%
+Step 27500 | Train Loss: 0.6386 Acc: 87.40%
+Step 27600 | Train Loss: 0.5908 Acc: 89.85%
+Step 27700 | Train Loss: 0.6558 Acc: 86.97%
+Step 27800 | Train Loss: 0.6704 Acc: 86.67%
+Step 27900 | Train Loss: 0.5895 Acc: 89.83%
+Step 28000 | Train Loss: 0.5445 Acc: 91.99% | Test Loss: 0.1251 Acc: 97.18% | Solved: 883/1000
+Step 28100 | Train Loss: 0.6132 Acc: 88.71%
+Step 28200 | Train Loss: 0.6367 Acc: 88.18%
+Step 28300 | Train Loss: 0.5852 Acc: 89.86%
+Step 28400 | Train Loss: 0.5725 Acc: 90.62%
+Step 28500 | Train Loss: 0.7397 Acc: 82.57%
+Step 28600 | Train Loss: 0.5537 Acc: 91.46%
+Step 28700 | Train Loss: 0.5897 Acc: 88.96%
+Step 28800 | Train Loss: 0.6160 Acc: 89.30%
+Step 28900 | Train Loss: 0.6315 Acc: 88.24%
+Step 29000 | Train Loss: 0.6311 Acc: 87.93% | Test Loss: 0.2465 Acc: 93.76% | Solved: 730/1000
+Step 29100 | Train Loss: 0.5793 Acc: 91.07%
+Step 29200 | Train Loss: 0.5697 Acc: 91.02%
+Step 29300 | Train Loss: 0.5835 Acc: 90.86%
+Step 29400 | Train Loss: 0.5953 Acc: 89.63%
+Step 29500 | Train Loss: 0.5876 Acc: 90.24%
+Step 29600 | Train Loss: 0.5692 Acc: 91.23%
+Step 29700 | Train Loss: 0.6508 Acc: 86.68%
+Step 29800 | Train Loss: 0.5700 Acc: 90.69%
+Step 29900 | Train Loss: 0.5663 Acc: 90.73%
+Step 30000 | Train Loss: 0.5520 Acc: 92.14% | Test Loss: 0.1500 Acc: 96.51% | Solved: 860/1000
+Step 30100 | Train Loss: 0.6091 Acc: 88.68%
+Step 30200 | Train Loss: 0.5738 Acc: 90.66%
+Step 30300 | Train Loss: 0.6366 Acc: 88.57%
+Step 30400 | Train Loss: 0.5765 Acc: 91.08%
+Step 30500 | Train Loss: 0.5735 Acc: 90.69%
+Step 30600 | Train Loss: 0.5854 Acc: 89.85%
+Step 30700 | Train Loss: 0.5629 Acc: 91.65%
+Step 30800 | Train Loss: 0.5625 Acc: 91.09%
+Step 30900 | Train Loss: 0.6652 Acc: 86.53%
+Step 31000 | Train Loss: 0.5258 Acc: 92.90% | Test Loss: 0.1313 Acc: 97.13% | Solved: 897/1000
+Step 31100 | Train Loss: 0.5695 Acc: 90.34%
+Step 31200 | Train Loss: 0.5918 Acc: 89.87%
+Step 31300 | Train Loss: 0.6213 Acc: 88.95%
+Step 31400 | Train Loss: 0.5535 Acc: 91.56%
+Step 31500 | Train Loss: 0.6158 Acc: 87.94%
+Step 31600 | Train Loss: 0.6825 Acc: 83.75%
+Step 31700 | Train Loss: 0.5870 Acc: 90.51%
+Step 31800 | Train Loss: 0.6303 Acc: 88.02%
+Step 31900 | Train Loss: 0.5752 Acc: 90.10%
+Step 32000 | Train Loss: 0.5903 Acc: 90.44% | Test Loss: 0.1497 Acc: 96.59% | Solved: 853/1000
+Step 32100 | Train Loss: 0.5554 Acc: 91.26%
+Step 32200 | Train Loss: 0.5635 Acc: 91.49%
+Step 32300 | Train Loss: 0.7690 Acc: 79.94%
+Step 32400 | Train Loss: 0.5164 Acc: 93.69%
+Step 32500 | Train Loss: 0.5232 Acc: 92.47%
+Step 32600 | Train Loss: 0.5828 Acc: 90.75%
+Step 32700 | Train Loss: 0.5579 Acc: 91.19%
+Step 32800 | Train Loss: 0.6145 Acc: 89.37%
+Step 32900 | Train Loss: 0.5474 Acc: 92.24%
+Step 33000 | Train Loss: 0.5678 Acc: 91.49% | Test Loss: 0.1318 Acc: 96.98% | Solved: 881/1000
+Step 33100 | Train Loss: 0.5559 Acc: 91.67%
+Step 33200 | Train Loss: 0.5800 Acc: 90.61%
+Step 33300 | Train Loss: 0.5767 Acc: 91.01%
+Step 33400 | Train Loss: 0.5310 Acc: 92.71%
+Step 33500 | Train Loss: 0.6027 Acc: 89.64%
+Step 33600 | Train Loss: 0.5660 Acc: 90.82%
+Step 33700 | Train Loss: 0.5671 Acc: 90.95%
+Step 33800 | Train Loss: 0.6305 Acc: 87.92%
+Step 33900 | Train Loss: 0.5759 Acc: 90.97%
+Step 34000 | Train Loss: 0.5514 Acc: 91.95% | Test Loss: 0.1257 Acc: 97.04% | Solved: 878/1000
+Step 34100 | Train Loss: 0.5789 Acc: 90.80%
+Step 34200 | Train Loss: 0.5636 Acc: 91.91%
+Step 34300 | Train Loss: 0.6149 Acc: 89.80%
+Step 34400 | Train Loss: 0.5399 Acc: 92.51%
+Step 34500 | Train Loss: 0.5677 Acc: 91.42%
+Step 34600 | Train Loss: 0.5990 Acc: 89.05%
+Step 34700 | Train Loss: 0.5746 Acc: 90.55%
+Step 34800 | Train Loss: 0.5843 Acc: 89.87%
+Step 34900 | Train Loss: 0.5768 Acc: 90.15%
+Step 35000 | Train Loss: 0.5875 Acc: 90.44% | Test Loss: 0.1234 Acc: 96.99% | Solved: 877/1000
+Step 35100 | Train Loss: 0.5950 Acc: 89.54%
+Step 35200 | Train Loss: 0.5405 Acc: 91.80%
+Step 35300 | Train Loss: 0.5700 Acc: 91.72%
+Step 35400 | Train Loss: 0.5375 Acc: 92.31%
+Step 35500 | Train Loss: 0.5233 Acc: 93.77%
+Step 35600 | Train Loss: 0.6084 Acc: 89.51%
+Step 35700 | Train Loss: 0.5665 Acc: 91.07%
+Step 35800 | Train Loss: 0.5793 Acc: 90.75%
+Step 35900 | Train Loss: 0.6420 Acc: 87.50%
+Step 36000 | Train Loss: 0.6413 Acc: 86.33% | Test Loss: 0.1352 Acc: 96.51% | Solved: 819/1000
+Step 36100 | Train Loss: 0.5561 Acc: 91.90%
+Step 36200 | Train Loss: 0.5398 Acc: 91.89%
+Step 36300 | Train Loss: 0.6219 Acc: 88.72%
+Step 36400 | Train Loss: 0.5795 Acc: 91.04%
+Step 36500 | Train Loss: 0.5777 Acc: 90.11%
+Step 36600 | Train Loss: 0.5533 Acc: 91.68%
+Step 36700 | Train Loss: 0.5287 Acc: 93.19%
+Step 36800 | Train Loss: 0.5757 Acc: 90.16%
+Step 36900 | Train Loss: 0.5664 Acc: 91.04%
+Step 37000 | Train Loss: 0.5453 Acc: 92.12% | Test Loss: 0.1089 Acc: 97.53% | Solved: 900/1000
+Step 37100 | Train Loss: 0.5453 Acc: 92.43%
+Step 37200 | Train Loss: 0.5681 Acc: 91.28%
+Step 37300 | Train Loss: 0.5937 Acc: 89.36%
+Step 37400 | Train Loss: 0.5600 Acc: 91.29%
+Step 37500 | Train Loss: 0.5956 Acc: 89.21%
+Step 37600 | Train Loss: 0.6177 Acc: 88.86%
+Step 37700 | Train Loss: 0.5944 Acc: 89.80%
+Step 37800 | Train Loss: 0.4983 Acc: 93.96%
+Step 37900 | Train Loss: 0.5721 Acc: 90.68%
+Step 38000 | Train Loss: 0.5403 Acc: 92.93% | Test Loss: 0.1209 Acc: 97.28% | Solved: 904/1000
+Step 38100 | Train Loss: 0.5461 Acc: 91.58%
+Step 38200 | Train Loss: 0.5402 Acc: 92.49%
+Step 38300 | Train Loss: 0.5537 Acc: 91.56%
+Step 38400 | Train Loss: 0.5483 Acc: 92.24%
+Step 38500 | Train Loss: 0.5906 Acc: 90.63%
+Step 38600 | Train Loss: 0.5249 Acc: 92.67%
+Step 38700 | Train Loss: 0.5614 Acc: 92.10%
+Step 38800 | Train Loss: 0.5385 Acc: 92.54%
+Step 38900 | Train Loss: 0.5606 Acc: 91.64%
+Step 39000 | Train Loss: 0.5239 Acc: 93.01% | Test Loss: 0.1396 Acc: 96.85% | Solved: 869/1000
+Step 39100 | Train Loss: 0.6141 Acc: 88.34%
+Step 39200 | Train Loss: 0.5094 Acc: 93.57%
+Step 39300 | Train Loss: 0.5045 Acc: 93.41%
+Step 39400 | Train Loss: 0.5582 Acc: 91.19%
+Step 39500 | Train Loss: 0.5583 Acc: 91.56%
+Step 39600 | Train Loss: 0.5894 Acc: 90.13%
+Step 39700 | Train Loss: 0.6179 Acc: 89.15%
+Step 39800 | Train Loss: 0.6306 Acc: 88.96%
+Step 39900 | Train Loss: 0.5612 Acc: 92.04%
+Step 40000 | Train Loss: 0.5425 Acc: 91.78% | Test Loss: 0.1403 Acc: 96.68% | Solved: 868/1000
+Step 40100 | Train Loss: 0.5975 Acc: 90.00%
+Step 40200 | Train Loss: 0.5532 Acc: 91.82%
+Step 40300 | Train Loss: 0.6054 Acc: 89.08%
+Step 40400 | Train Loss: 0.5114 Acc: 94.04%
+Step 40500 | Train Loss: 0.6350 Acc: 88.61%
+Step 40600 | Train Loss: 0.5701 Acc: 91.21%
+Step 40700 | Train Loss: 0.5426 Acc: 92.65%
+Step 40800 | Train Loss: 0.5136 Acc: 93.23%
+Step 40900 | Train Loss: 0.5131 Acc: 93.48%
+Step 41000 | Train Loss: 0.6160 Acc: 88.86% | Test Loss: 0.1247 Acc: 96.76% | Solved: 860/1000
+Step 41100 | Train Loss: 0.5461 Acc: 92.49%
+Step 41200 | Train Loss: 0.6955 Acc: 84.73%
+Step 41300 | Train Loss: 0.5571 Acc: 91.89%
+Step 41400 | Train Loss: 0.5399 Acc: 92.61%
+Step 41500 | Train Loss: 0.5367 Acc: 92.97%
+Step 41600 | Train Loss: 0.5435 Acc: 91.67%
+Step 41700 | Train Loss: 0.5284 Acc: 92.79%
+Step 41800 | Train Loss: 0.5192 Acc: 93.28%
+Step 41900 | Train Loss: 0.5416 Acc: 92.09%
+Step 42000 | Train Loss: 0.5981 Acc: 89.34% | Test Loss: 0.1531 Acc: 96.48% | Solved: 849/1000
+Step 42100 | Train Loss: 0.5458 Acc: 92.54%
+Step 42200 | Train Loss: 0.5476 Acc: 92.41%
+Step 42300 | Train Loss: 0.5727 Acc: 91.63%
+Step 42400 | Train Loss: 0.6397 Acc: 88.44%
+Step 42500 | Train Loss: 0.5742 Acc: 90.67%
+Step 42600 | Train Loss: 0.5113 Acc: 93.94%
+Step 42700 | Train Loss: 0.5826 Acc: 90.03%
+Step 42800 | Train Loss: 0.6425 Acc: 87.28%
+Step 42900 | Train Loss: 0.5612 Acc: 91.34%
+Step 43000 | Train Loss: 0.5552 Acc: 91.26% | Test Loss: 0.0950 Acc: 97.79% | Solved: 902/1000
+Step 43100 | Train Loss: 0.5613 Acc: 92.01%
+Step 43200 | Train Loss: 0.6357 Acc: 87.60%
+Step 43300 | Train Loss: 0.5440 Acc: 91.46%
+Step 43400 | Train Loss: 0.5443 Acc: 91.84%
+Step 43500 | Train Loss: 0.5113 Acc: 93.31%
+Step 43600 | Train Loss: 0.5642 Acc: 91.28%
+Step 43700 | Train Loss: 0.6007 Acc: 89.35%
+Step 43800 | Train Loss: 0.5492 Acc: 91.92%
+Step 43900 | Train Loss: 0.5710 Acc: 91.21%
+Step 44000 | Train Loss: 0.6338 Acc: 88.60% | Test Loss: 0.1919 Acc: 95.18% | Solved: 794/1000
+Step 44100 | Train Loss: 0.5458 Acc: 91.84%
+Step 44200 | Train Loss: 0.5423 Acc: 91.85%
+Step 44300 | Train Loss: 0.5530 Acc: 91.42%
+Step 44400 | Train Loss: 0.5861 Acc: 89.87%
+Step 44500 | Train Loss: 0.5105 Acc: 93.52%
+Step 44600 | Train Loss: 0.6364 Acc: 87.33%
+Step 44700 | Train Loss: 0.5898 Acc: 90.02%
+Step 44800 | Train Loss: 0.5546 Acc: 90.98%
+Step 44900 | Train Loss: 0.5840 Acc: 90.33%
+Step 45000 | Train Loss: 0.5456 Acc: 92.56% | Test Loss: 0.1047 Acc: 97.44% | Solved: 899/1000
+Step 45100 | Train Loss: 0.6214 Acc: 88.88%
+Step 45200 | Train Loss: 0.5851 Acc: 90.28%
+Step 45300 | Train Loss: 0.5959 Acc: 89.82%
+Step 45400 | Train Loss: 0.5130 Acc: 93.89%
+Step 45500 | Train Loss: 0.5385 Acc: 92.85%
+Step 45600 | Train Loss: 0.5146 Acc: 93.78%
+Step 45700 | Train Loss: 0.5010 Acc: 94.26%
+Step 45800 | Train Loss: 0.5374 Acc: 91.99%
+Step 45900 | Train Loss: 0.5070 Acc: 93.68%
+Step 46000 | Train Loss: 0.5643 Acc: 91.26% | Test Loss: 0.0962 Acc: 97.95% | Solved: 919/1000
+Step 46100 | Train Loss: 0.5451 Acc: 92.85%
+Step 46200 | Train Loss: 0.5191 Acc: 93.38%
+Step 46300 | Train Loss: 0.6114 Acc: 89.53%
+Step 46400 | Train Loss: 0.5550 Acc: 91.52%
+Step 46500 | Train Loss: 0.5476 Acc: 91.98%
+Step 46600 | Train Loss: 0.5164 Acc: 93.32%
+Step 46700 | Train Loss: 0.5443 Acc: 93.14%
+Step 46800 | Train Loss: 0.5347 Acc: 92.73%
+Step 46900 | Train Loss: 0.6496 Acc: 88.22%
+Step 47000 | Train Loss: 0.5402 Acc: 92.09% | Test Loss: 0.1014 Acc: 97.78% | Solved: 906/1000
+Step 47100 | Train Loss: 0.4940 Acc: 94.22%
+Step 47200 | Train Loss: 0.6063 Acc: 90.05%
+Step 47300 | Train Loss: 0.6150 Acc: 88.92%
+Step 47400 | Train Loss: 0.5471 Acc: 92.18%
+Step 47500 | Train Loss: 0.5604 Acc: 91.07%
+Step 47600 | Train Loss: 0.4944 Acc: 93.78%
+Step 47700 | Train Loss: 0.6281 Acc: 88.74%
+Step 47800 | Train Loss: 0.5084 Acc: 93.48%
+Step 47900 | Train Loss: 0.5426 Acc: 92.54%
+Step 48000 | Train Loss: 0.5469 Acc: 92.19% | Test Loss: 0.1147 Acc: 97.03% | Solved: 863/1000
+Step 48100 | Train Loss: 0.5482 Acc: 92.08%
+Step 48200 | Train Loss: 0.5172 Acc: 92.91%
+Step 48300 | Train Loss: 0.4640 Acc: 95.49%
+Step 48400 | Train Loss: 0.5066 Acc: 93.21%
+Step 48500 | Train Loss: 0.5623 Acc: 91.97%
+Step 48600 | Train Loss: 0.5020 Acc: 93.55%
+Step 48700 | Train Loss: 0.5688 Acc: 90.77%
+Step 48800 | Train Loss: 0.4966 Acc: 93.50%
+Step 48900 | Train Loss: 0.5767 Acc: 90.70%
+Step 49000 | Train Loss: 0.4950 Acc: 94.42% | Test Loss: 0.0966 Acc: 97.90% | Solved: 926/1000
+Step 49100 | Train Loss: 0.5651 Acc: 91.38%
+Step 49200 | Train Loss: 0.5523 Acc: 92.41%
+Step 49300 | Train Loss: 0.5086 Acc: 93.82%
+Step 49400 | Train Loss: 0.5570 Acc: 91.17%
+Step 49500 | Train Loss: 0.5564 Acc: 92.12%
+Step 49600 | Train Loss: 0.5850 Acc: 91.13%
+Step 49700 | Train Loss: 0.5437 Acc: 92.55%
+Step 49800 | Train Loss: 0.4972 Acc: 94.49%
+Step 49900 | Train Loss: 0.5302 Acc: 92.87%
+Step 50000 | Train Loss: 0.5437 Acc: 92.05% | Test Loss: 0.1281 Acc: 96.98% | Solved: 897/1000
+Step 50100 | Train Loss: 0.5249 Acc: 93.07%
+Step 50200 | Train Loss: 0.5343 Acc: 93.23%
+Step 50300 | Train Loss: 0.5455 Acc: 92.40%
+Step 50400 | Train Loss: 0.5980 Acc: 89.42%
+Step 50500 | Train Loss: 0.5389 Acc: 92.04%
+Step 50600 | Train Loss: 0.5545 Acc: 92.00%
+Step 50700 | Train Loss: 0.5575 Acc: 92.50%
+Step 50800 | Train Loss: 0.6262 Acc: 87.90%
+Step 50900 | Train Loss: 0.5441 Acc: 91.74%
+Step 51000 | Train Loss: 0.4932 Acc: 94.83% | Test Loss: 0.1000 Acc: 97.67% | Solved: 923/1000
+Step 51100 | Train Loss: 0.5365 Acc: 92.93%
+Step 51200 | Train Loss: 0.5293 Acc: 92.61%
+Step 51300 | Train Loss: 0.6026 Acc: 89.44%
+Step 51400 | Train Loss: 0.5638 Acc: 91.31%
+Step 51500 | Train Loss: 0.5348 Acc: 92.62%
+Step 51600 | Train Loss: 0.5769 Acc: 91.31%
+Step 51700 | Train Loss: 0.5306 Acc: 92.95%
+Step 51800 | Train Loss: 0.5966 Acc: 90.79%
+Step 51900 | Train Loss: 0.4813 Acc: 94.50%
+Step 52000 | Train Loss: 0.5950 Acc: 89.70% | Test Loss: 0.1275 Acc: 96.74% | Solved: 841/1000
+Step 52100 | Train Loss: 0.4938 Acc: 94.03%
+Step 52200 | Train Loss: 0.6340 Acc: 88.76%
+Step 52300 | Train Loss: 0.5194 Acc: 93.44%
+Step 52400 | Train Loss: 0.5126 Acc: 93.88%
+Step 52500 | Train Loss: 0.6019 Acc: 89.03%
+Step 52600 | Train Loss: 0.5961 Acc: 89.32%
+Step 52700 | Train Loss: 0.4868 Acc: 94.56%
+Step 52800 | Train Loss: 0.5457 Acc: 91.88%
+Step 52900 | Train Loss: 0.5840 Acc: 90.65%
+Step 53000 | Train Loss: 0.4915 Acc: 95.05% | Test Loss: 0.0741 Acc: 98.16% | Solved: 919/1000
+Step 53100 | Train Loss: 0.4916 Acc: 93.80%
+Step 53200 | Train Loss: 0.5068 Acc: 92.52%
+Step 53300 | Train Loss: 0.5033 Acc: 93.78%
+Step 53400 | Train Loss: 0.5108 Acc: 92.94%
+Step 53500 | Train Loss: 0.5758 Acc: 90.76%
+Step 53600 | Train Loss: 0.6308 Acc: 87.85%
+Step 53700 | Train Loss: 0.6452 Acc: 88.14%
+Step 53800 | Train Loss: 0.5336 Acc: 92.58%
+Step 53900 | Train Loss: 0.5330 Acc: 93.19%
+Step 54000 | Train Loss: 0.5429 Acc: 91.90% | Test Loss: 0.0985 Acc: 97.68% | Solved: 907/1000
+Step 54100 | Train Loss: 0.5369 Acc: 92.54%
+Step 54200 | Train Loss: 0.5827 Acc: 90.58%
+Step 54300 | Train Loss: 0.5742 Acc: 90.49%
+Step 54400 | Train Loss: 0.5459 Acc: 92.19%
+Step 54500 | Train Loss: 0.5650 Acc: 91.48%
+Step 54600 | Train Loss: 0.5929 Acc: 89.71%
+Step 54700 | Train Loss: 0.5535 Acc: 91.60%
+Step 54800 | Train Loss: 0.6825 Acc: 84.29%
+Step 54900 | Train Loss: 0.5288 Acc: 92.11%
+Step 55000 | Train Loss: 0.5476 Acc: 92.34% | Test Loss: 0.0930 Acc: 97.76% | Solved: 905/1000
+Step 55100 | Train Loss: 0.5515 Acc: 92.26%
+Step 55200 | Train Loss: 0.5664 Acc: 91.14%
+Step 55300 | Train Loss: 0.4539 Acc: 96.07%
+Step 55400 | Train Loss: 0.5074 Acc: 94.15%
+Step 55500 | Train Loss: 0.4867 Acc: 94.86%
+Step 55600 | Train Loss: 0.5120 Acc: 93.41%
+Step 55700 | Train Loss: 0.5323 Acc: 92.90%
+Step 55800 | Train Loss: 0.5414 Acc: 92.67%
+Step 55900 | Train Loss: 0.4886 Acc: 94.30%
+Step 56000 | Train Loss: 0.5788 Acc: 90.99% | Test Loss: 0.1437 Acc: 96.61% | Solved: 870/1000
+Step 56100 | Train Loss: 0.5897 Acc: 90.06%
+Step 56200 | Train Loss: 0.4774 Acc: 95.40%
+Step 56300 | Train Loss: 0.5275 Acc: 92.92%
+Step 56400 | Train Loss: 0.5299 Acc: 92.96%
+Step 56500 | Train Loss: 0.6292 Acc: 88.45%
+Step 56600 | Train Loss: 0.5160 Acc: 94.28%
+Step 56700 | Train Loss: 0.5111 Acc: 93.75%
+Step 56800 | Train Loss: 0.5718 Acc: 91.16%
+Step 56900 | Train Loss: 0.6026 Acc: 89.96%
+Step 57000 | Train Loss: 0.5386 Acc: 92.54% | Test Loss: 0.0534 Acc: 98.73% | Solved: 937/1000
+Step 57100 | Train Loss: 0.4972 Acc: 93.75%
+Step 57200 | Train Loss: 0.5397 Acc: 92.95%
+Step 57300 | Train Loss: 0.5126 Acc: 93.00%
+Step 57400 | Train Loss: 0.5590 Acc: 91.91%
+Step 57500 | Train Loss: 0.4960 Acc: 94.02%
+Step 57600 | Train Loss: 0.5106 Acc: 93.98%
+Step 57700 | Train Loss: 0.5878 Acc: 90.25%
+Step 57800 | Train Loss: 0.5481 Acc: 91.43%
+Step 57900 | Train Loss: 0.5196 Acc: 92.26%
+Step 58000 | Train Loss: 0.5267 Acc: 92.84% | Test Loss: 0.1125 Acc: 97.63% | Solved: 907/1000
+Step 58100 | Train Loss: 0.5041 Acc: 93.11%
+Step 58200 | Train Loss: 0.5756 Acc: 90.76%
+Step 58300 | Train Loss: 0.5417 Acc: 92.48%
+Step 58400 | Train Loss: 0.4685 Acc: 95.41%
+Step 58500 | Train Loss: 0.5377 Acc: 93.16%
+Step 58600 | Train Loss: 0.4641 Acc: 94.87%
+Step 58700 | Train Loss: 0.5823 Acc: 89.62%
+Step 58800 | Train Loss: 0.5672 Acc: 91.12%
+Step 58900 | Train Loss: 0.5146 Acc: 93.86%
+Step 59000 | Train Loss: 0.5053 Acc: 94.03% | Test Loss: 0.0975 Acc: 97.53% | Solved: 915/1000
+Step 59100 | Train Loss: 0.5032 Acc: 93.67%
+Step 59200 | Train Loss: 0.5127 Acc: 93.81%
+Step 59300 | Train Loss: 0.4972 Acc: 93.45%
+Step 59400 | Train Loss: 0.5145 Acc: 93.05%
+Step 59500 | Train Loss: 0.4966 Acc: 94.12%
+Step 59600 | Train Loss: 0.4881 Acc: 95.20%
+Step 59700 | Train Loss: 0.5645 Acc: 91.05%
+Step 59800 | Train Loss: 0.5873 Acc: 90.27%
+Step 59900 | Train Loss: 0.5010 Acc: 93.74%
+Step 60000 | Train Loss: 0.4979 Acc: 94.60% | Test Loss: 0.0852 Acc: 97.97% | Solved: 923/1000
+Step 60100 | Train Loss: 0.5230 Acc: 92.65%
+Step 60200 | Train Loss: 0.5353 Acc: 92.39%
+Step 60300 | Train Loss: 0.5305 Acc: 93.31%
+Step 60400 | Train Loss: 0.4727 Acc: 94.47%
+Step 60500 | Train Loss: 0.5327 Acc: 92.61%
+Step 60600 | Train Loss: 0.5197 Acc: 92.84%
+Step 60700 | Train Loss: 0.5987 Acc: 90.49%
+Step 60800 | Train Loss: 0.5120 Acc: 94.18%
+Step 60900 | Train Loss: 0.4902 Acc: 94.41%
+Step 61000 | Train Loss: 0.5121 Acc: 92.94% | Test Loss: 0.0953 Acc: 97.71% | Solved: 915/1000
+Step 61100 | Train Loss: 0.5715 Acc: 91.09%
+Step 61200 | Train Loss: 0.4837 Acc: 95.13%
+Step 61300 | Train Loss: 0.4610 Acc: 96.00%
+Step 61400 | Train Loss: 0.6623 Acc: 86.82%
+Step 61500 | Train Loss: 0.5412 Acc: 92.85%
+Step 61600 | Train Loss: 0.5576 Acc: 91.50%
+Step 61700 | Train Loss: 0.5749 Acc: 91.05%
+Step 61800 | Train Loss: 0.6051 Acc: 89.95%
+Step 61900 | Train Loss: 0.5115 Acc: 93.15%
+Step 62000 | Train Loss: 0.5186 Acc: 93.74% | Test Loss: 0.0954 Acc: 97.77% | Solved: 917/1000
+Step 62100 | Train Loss: 0.5145 Acc: 93.72%
+Step 62200 | Train Loss: 0.6054 Acc: 88.63%
+Step 62300 | Train Loss: 0.5638 Acc: 91.03%
+Step 62400 | Train Loss: 0.5030 Acc: 94.29%
+Step 62500 | Train Loss: 0.5811 Acc: 90.77%
+Step 62600 | Train Loss: 0.4827 Acc: 93.24%
+Step 62700 | Train Loss: 0.5278 Acc: 92.95%
+Step 62800 | Train Loss: 0.5197 Acc: 93.14%
+Step 62900 | Train Loss: 0.5114 Acc: 92.77%
+Step 63000 | Train Loss: 0.4471 Acc: 96.57% | Test Loss: 0.1071 Acc: 97.78% | Solved: 923/1000
+Step 63100 | Train Loss: 0.5646 Acc: 91.59%
+Step 63200 | Train Loss: 0.4840 Acc: 94.55%
+Step 63300 | Train Loss: 0.5365 Acc: 92.74%
+Step 63400 | Train Loss: 0.6686 Acc: 85.20%
+Step 63500 | Train Loss: 0.5086 Acc: 93.71%
+Step 63600 | Train Loss: 0.5780 Acc: 90.80%
+Step 63700 | Train Loss: 0.5605 Acc: 92.28%
+Step 63800 | Train Loss: 0.5148 Acc: 93.65%
+Step 63900 | Train Loss: 0.5389 Acc: 92.42%
+Step 64000 | Train Loss: 0.4978 Acc: 94.30% | Test Loss: 0.0799 Acc: 98.01% | Solved: 928/1000
+Step 64100 | Train Loss: 0.5760 Acc: 90.63%
+Step 64200 | Train Loss: 0.5023 Acc: 94.41%
+Step 64300 | Train Loss: 0.5324 Acc: 92.46%
+Step 64400 | Train Loss: 0.4841 Acc: 94.77%
+Step 64500 | Train Loss: 0.4988 Acc: 94.48%
+Step 64600 | Train Loss: 0.4833 Acc: 94.15%
+Step 64700 | Train Loss: 0.5278 Acc: 92.85%
+Step 64800 | Train Loss: 0.5290 Acc: 93.34%
+Step 64900 | Train Loss: 0.5384 Acc: 93.16%
+Step 65000 | Train Loss: 0.5329 Acc: 91.99% | Test Loss: 0.0906 Acc: 97.87% | Solved: 927/1000
+Step 65100 | Train Loss: 0.5387 Acc: 92.15%
+Step 65200 | Train Loss: 0.5876 Acc: 90.32%
+Step 65300 | Train Loss: 0.7465 Acc: 81.65%
+Step 65400 | Train Loss: 0.5431 Acc: 92.60%
+Step 65500 | Train Loss: 0.5023 Acc: 94.53%
+Step 65600 | Train Loss: 0.6130 Acc: 90.75%
+Step 65700 | Train Loss: 0.4970 Acc: 94.03%
+Step 65800 | Train Loss: 0.4968 Acc: 93.68%
+Step 65900 | Train Loss: 0.5402 Acc: 93.02%
+Step 66000 | Train Loss: 0.5280 Acc: 93.28% | Test Loss: 0.0629 Acc: 98.46% | Solved: 936/1000
+Step 66100 | Train Loss: 0.5305 Acc: 93.11%
+Step 66200 | Train Loss: 0.5313 Acc: 92.54%
+Step 66300 | Train Loss: 0.4829 Acc: 94.44%
+Step 66400 | Train Loss: 0.5420 Acc: 91.93%
+Step 66500 | Train Loss: 0.4933 Acc: 94.29%
+Step 66600 | Train Loss: 0.5639 Acc: 90.94%
+Step 66700 | Train Loss: 0.4915 Acc: 94.90%
+Step 66800 | Train Loss: 0.5128 Acc: 93.08%
+Step 66900 | Train Loss: 0.5703 Acc: 91.40%
+Step 67000 | Train Loss: 0.5667 Acc: 91.72% | Test Loss: 0.1235 Acc: 97.00% | Solved: 888/1000
+Step 67100 | Train Loss: 0.5274 Acc: 93.11%
+Step 67200 | Train Loss: 0.5517 Acc: 92.15%
+Step 67300 | Train Loss: 0.5351 Acc: 91.94%
+Step 67400 | Train Loss: 0.5837 Acc: 90.45%
+Step 67500 | Train Loss: 0.5365 Acc: 92.30%
+Step 67600 | Train Loss: 0.5449 Acc: 92.42%
+Step 67700 | Train Loss: 0.5148 Acc: 93.45%
+Step 67800 | Train Loss: 0.6762 Acc: 84.82%
+Step 67900 | Train Loss: 0.5026 Acc: 94.03%
+Step 68000 | Train Loss: 0.5024 Acc: 94.52% | Test Loss: 0.0908 Acc: 98.12% | Solved: 924/1000
+Step 68100 | Train Loss: 0.5003 Acc: 93.17%
+Step 68200 | Train Loss: 0.5147 Acc: 93.38%
+Step 68300 | Train Loss: 0.5097 Acc: 93.38%
+Step 68400 | Train Loss: 0.5298 Acc: 92.90%
+Step 68500 | Train Loss: 0.5105 Acc: 93.73%
+Step 68600 | Train Loss: 0.4849 Acc: 95.07%
+Step 68700 | Train Loss: 0.4746 Acc: 95.19%
+Step 68800 | Train Loss: 0.4859 Acc: 93.93%
+Step 68900 | Train Loss: 0.6625 Acc: 87.23%
+Step 69000 | Train Loss: 0.4766 Acc: 94.21% | Test Loss: 0.0824 Acc: 98.08% | Solved: 931/1000
+Step 69100 | Train Loss: 0.5158 Acc: 93.80%
+Step 69200 | Train Loss: 0.4805 Acc: 94.65%
+Step 69300 | Train Loss: 0.5458 Acc: 92.74%
+Step 69400 | Train Loss: 0.5397 Acc: 92.48%
+Step 69500 | Train Loss: 0.4530 Acc: 95.71%
+Step 69600 | Train Loss: 0.5019 Acc: 93.80%
+Step 69700 | Train Loss: 0.5251 Acc: 93.39%
+Step 69800 | Train Loss: 0.5680 Acc: 90.95%
+Step 69900 | Train Loss: 0.4839 Acc: 95.57%
+Step 70000 | Train Loss: 0.5250 Acc: 93.70% | Test Loss: 0.1031 Acc: 97.54% | Solved: 914/1000
+Step 70100 | Train Loss: 0.4908 Acc: 94.03%
+Step 70200 | Train Loss: 0.5694 Acc: 91.70%
+Step 70300 | Train Loss: 0.4906 Acc: 94.47%
+Step 70400 | Train Loss: 0.5787 Acc: 90.42%
+Step 70500 | Train Loss: 0.5484 Acc: 91.77%
+Step 70600 | Train Loss: 0.5125 Acc: 93.58%
+Step 70700 | Train Loss: 0.4986 Acc: 93.99%
+Step 70800 | Train Loss: 0.5244 Acc: 92.46%
+Step 70900 | Train Loss: 0.5581 Acc: 91.88%
+Step 71000 | Train Loss: 0.5051 Acc: 94.01% | Test Loss: 0.0669 Acc: 98.41% | Solved: 939/1000
+Step 71100 | Train Loss: 0.5159 Acc: 93.31%
+Step 71200 | Train Loss: 0.5588 Acc: 91.92%
+Step 71300 | Train Loss: 0.5131 Acc: 93.37%
+Step 71400 | Train Loss: 0.5081 Acc: 94.11%
+Step 71500 | Train Loss: 0.5435 Acc: 92.48%
+Step 71600 | Train Loss: 0.4996 Acc: 94.60%
+Step 71700 | Train Loss: 0.4808 Acc: 95.49%
+Step 71800 | Train Loss: 0.5466 Acc: 92.54%
+Step 71900 | Train Loss: 0.4812 Acc: 94.81%
+Step 72000 | Train Loss: 0.5191 Acc: 94.39% | Test Loss: 0.0650 Acc: 98.38% | Solved: 937/1000
+Step 72100 | Train Loss: 0.6010 Acc: 89.99%
+Step 72200 | Train Loss: 0.5200 Acc: 93.22%
+Step 72300 | Train Loss: 0.5488 Acc: 92.10%
+Step 72400 | Train Loss: 0.5776 Acc: 90.99%
+Step 72500 | Train Loss: 0.5224 Acc: 93.25%
+Step 72600 | Train Loss: 0.5389 Acc: 92.06%
+Step 72700 | Train Loss: 0.5590 Acc: 91.66%
+Step 72800 | Train Loss: 0.5561 Acc: 91.46%
+Step 72900 | Train Loss: 0.4886 Acc: 94.45%
+Step 73000 | Train Loss: 0.5954 Acc: 90.05% | Test Loss: 0.0889 Acc: 97.79% | Solved: 922/1000
+Step 73100 | Train Loss: 0.5737 Acc: 90.66%
+Step 73200 | Train Loss: 0.5392 Acc: 91.78%
+Step 73300 | Train Loss: 0.5025 Acc: 93.67%
+Step 73400 | Train Loss: 0.5092 Acc: 93.13%
+Step 73500 | Train Loss: 0.4779 Acc: 94.40%
+Step 73600 | Train Loss: 0.5028 Acc: 94.35%
+Step 73700 | Train Loss: 0.5165 Acc: 93.20%
+Step 73800 | Train Loss: 0.4416 Acc: 96.65%
+Step 73900 | Train Loss: 0.4590 Acc: 95.97%
+Step 74000 | Train Loss: 0.5298 Acc: 92.85% | Test Loss: 0.0735 Acc: 98.26% | Solved: 935/1000
+Step 74100 | Train Loss: 0.5086 Acc: 93.20%
+Step 74200 | Train Loss: 0.5348 Acc: 93.11%
+Step 74300 | Train Loss: 0.4871 Acc: 94.18%
+Step 74400 | Train Loss: 0.4977 Acc: 94.30%
+Step 74500 | Train Loss: 0.6510 Acc: 87.28%
+Step 74600 | Train Loss: 0.4878 Acc: 94.98%
+Step 74700 | Train Loss: 0.5001 Acc: 94.39%
+Step 74800 | Train Loss: 0.5004 Acc: 94.45%
+Step 74900 | Train Loss: 0.5051 Acc: 94.54%
+Step 75000 | Train Loss: 0.5046 Acc: 94.23% | Test Loss: 0.0743 Acc: 98.14% | Solved: 929/1000
+Step 75100 | Train Loss: 0.4779 Acc: 94.37%
+Step 75200 | Train Loss: 0.5594 Acc: 91.66%
+Step 75300 | Train Loss: 0.5059 Acc: 93.59%
+Step 75400 | Train Loss: 0.5229 Acc: 93.62%
+Step 75500 | Train Loss: 0.5578 Acc: 91.28%
+Step 75600 | Train Loss: 0.5552 Acc: 92.84%
+Step 75700 | Train Loss: 0.4833 Acc: 94.40%
+Step 75800 | Train Loss: 0.4454 Acc: 95.29%
+Step 75900 | Train Loss: 0.5023 Acc: 93.69%
+Step 76000 | Train Loss: 0.5723 Acc: 90.90% | Test Loss: 0.1606 Acc: 96.71% | Solved: 870/1000
+Step 76100 | Train Loss: 0.4740 Acc: 94.71%
+Step 76200 | Train Loss: 0.5473 Acc: 92.08%
+Step 76300 | Train Loss: 0.5615 Acc: 92.23%
+Step 76400 | Train Loss: 0.5184 Acc: 93.44%
+Step 76500 | Train Loss: 0.4993 Acc: 93.61%
+Step 76600 | Train Loss: 0.5025 Acc: 93.60%
+Step 76700 | Train Loss: 0.4746 Acc: 94.93%
+Step 76800 | Train Loss: 0.5109 Acc: 93.34%
+Step 76900 | Train Loss: 0.6894 Acc: 86.01%
+Step 77000 | Train Loss: 0.4862 Acc: 94.44% | Test Loss: 0.0821 Acc: 98.22% | Solved: 937/1000
+Step 77100 | Train Loss: 0.5018 Acc: 94.15%
+Step 77200 | Train Loss: 0.5372 Acc: 92.04%
+Step 77300 | Train Loss: 0.5258 Acc: 92.90%
+Step 77400 | Train Loss: 0.5017 Acc: 93.04%
+Step 77500 | Train Loss: 0.5045 Acc: 93.22%
+Step 77600 | Train Loss: 0.5238 Acc: 93.40%
+Step 77700 | Train Loss: 0.6845 Acc: 85.31%
+Step 77800 | Train Loss: 0.5472 Acc: 92.36%
+Step 77900 | Train Loss: 0.4861 Acc: 94.38%
+Step 78000 | Train Loss: 0.5130 Acc: 93.43% | Test Loss: 0.0643 Acc: 98.44% | Solved: 940/1000
+Step 78100 | Train Loss: 0.4527 Acc: 95.66%
+Step 78200 | Train Loss: 0.4770 Acc: 94.98%
+Step 78300 | Train Loss: 0.5375 Acc: 92.96%
+Step 78400 | Train Loss: 0.4786 Acc: 94.74%
+Step 78500 | Train Loss: 0.4880 Acc: 93.74%
+Step 78600 | Train Loss: 0.4746 Acc: 94.78%
+Step 78700 | Train Loss: 0.4673 Acc: 94.97%
+Step 78800 | Train Loss: 0.5046 Acc: 93.90%
+Step 78900 | Train Loss: 0.5325 Acc: 93.01%
+Step 79000 | Train Loss: 0.5084 Acc: 94.21% | Test Loss: 0.0688 Acc: 98.32% | Solved: 945/1000
+Step 79100 | Train Loss: 0.4821 Acc: 94.53%
+Step 79200 | Train Loss: 0.5446 Acc: 93.20%
+Step 79300 | Train Loss: 0.4610 Acc: 95.14%
+Step 79400 | Train Loss: 0.5236 Acc: 93.07%
+Step 79500 | Train Loss: 0.4981 Acc: 94.16%
+Step 79600 | Train Loss: 0.5128 Acc: 93.17%
+Step 79700 | Train Loss: 0.5011 Acc: 94.11%
+Step 79800 | Train Loss: 0.5817 Acc: 90.68%
+Step 79900 | Train Loss: 0.5320 Acc: 92.46%
+Step 80000 | Train Loss: 0.5287 Acc: 93.25% | Test Loss: 0.1128 Acc: 97.61% | Solved: 908/1000
+Step 80100 | Train Loss: 0.5037 Acc: 94.25%
+Step 80200 | Train Loss: 0.4574 Acc: 95.07%
+Step 80300 | Train Loss: 0.5530 Acc: 91.27%
+Step 80400 | Train Loss: 0.5220 Acc: 93.84%
+Step 80500 | Train Loss: 0.5204 Acc: 92.52%
+Step 80600 | Train Loss: 0.4637 Acc: 94.86%
+Step 80700 | Train Loss: 0.4597 Acc: 94.77%
+Step 80800 | Train Loss: 0.5259 Acc: 92.89%
+Step 80900 | Train Loss: 0.5423 Acc: 91.88%
+Step 81000 | Train Loss: 0.4988 Acc: 94.22% | Test Loss: 0.0971 Acc: 97.74% | Solved: 927/1000
+Step 81100 | Train Loss: 0.4973 Acc: 94.09%
+Step 81200 | Train Loss: 0.4738 Acc: 95.01%
+Step 81300 | Train Loss: 0.4857 Acc: 95.24%
+Step 81400 | Train Loss: 0.5519 Acc: 92.59%
+Step 81500 | Train Loss: 0.5132 Acc: 93.35%
+Step 81600 | Train Loss: 0.4389 Acc: 95.34%
+Step 81700 | Train Loss: 0.4425 Acc: 95.93%
+Step 81800 | Train Loss: 0.5225 Acc: 94.18%
+Step 81900 | Train Loss: 0.4655 Acc: 94.39%
+Step 82000 | Train Loss: 0.5190 Acc: 93.61% | Test Loss: 0.1069 Acc: 97.40% | Solved: 905/1000
+Step 82100 | Train Loss: 0.5473 Acc: 91.99%
+Step 82200 | Train Loss: 0.4970 Acc: 93.74%
+Step 82300 | Train Loss: 0.6143 Acc: 90.20%
+Step 82400 | Train Loss: 0.4374 Acc: 95.74%
+Step 82500 | Train Loss: 0.5066 Acc: 93.83%
+Step 82600 | Train Loss: 0.5232 Acc: 93.54%
+Step 82700 | Train Loss: 0.4725 Acc: 94.79%
+Step 82800 | Train Loss: 0.4814 Acc: 94.15%
+Step 82900 | Train Loss: 0.5586 Acc: 91.51%
+Step 83000 | Train Loss: 0.5070 Acc: 93.96% | Test Loss: 0.0640 Acc: 98.57% | Solved: 941/1000
+Step 83100 | Train Loss: 0.5586 Acc: 91.47%
+Step 83200 | Train Loss: 0.5594 Acc: 90.97%
+Step 83300 | Train Loss: 0.4751 Acc: 95.03%
+Step 83400 | Train Loss: 0.5342 Acc: 92.62%
+Step 83500 | Train Loss: 0.4852 Acc: 94.52%
+Step 83600 | Train Loss: 0.5676 Acc: 91.51%
+Step 83700 | Train Loss: 0.4569 Acc: 95.73%
+Step 83800 | Train Loss: 0.5019 Acc: 93.50%
+Step 83900 | Train Loss: 0.5076 Acc: 93.30%
+Step 84000 | Train Loss: 0.5033 Acc: 94.05% | Test Loss: 0.0812 Acc: 97.93% | Solved: 926/1000
+Step 84100 | Train Loss: 0.4911 Acc: 93.72%
+Step 84200 | Train Loss: 0.5588 Acc: 92.53%
+Step 84300 | Train Loss: 0.4748 Acc: 94.33%
+Step 84400 | Train Loss: 0.5367 Acc: 91.91%
+Step 84500 | Train Loss: 0.5241 Acc: 92.78%
+Step 84600 | Train Loss: 0.5373 Acc: 92.18%
+Step 84700 | Train Loss: 0.4843 Acc: 94.40%
+Step 84800 | Train Loss: 0.4596 Acc: 96.15%
+Step 84900 | Train Loss: 0.4619 Acc: 95.51%
+Step 85000 | Train Loss: 0.4560 Acc: 94.94% | Test Loss: 0.0726 Acc: 98.43% | Solved: 943/1000
+Step 85100 | Train Loss: 0.5392 Acc: 92.37%
+Step 85200 | Train Loss: 0.4599 Acc: 94.31%
+Step 85300 | Train Loss: 0.4978 Acc: 94.11%
+Step 85400 | Train Loss: 0.6077 Acc: 88.07%
+Step 85500 | Train Loss: 0.5235 Acc: 92.59%
+Step 85600 | Train Loss: 0.5632 Acc: 90.78%
+Step 85700 | Train Loss: 0.4605 Acc: 95.38%
+Step 85800 | Train Loss: 0.4591 Acc: 95.14%
+Step 85900 | Train Loss: 0.5454 Acc: 92.21%
+Step 86000 | Train Loss: 0.4643 Acc: 95.51% | Test Loss: 0.0756 Acc: 98.10% | Solved: 928/1000
+Step 86100 | Train Loss: 0.6709 Acc: 86.31%
+Step 86200 | Train Loss: 0.5120 Acc: 92.86%
+Step 86300 | Train Loss: 0.5202 Acc: 92.64%
+Step 86400 | Train Loss: 0.4824 Acc: 93.92%
+Step 86500 | Train Loss: 0.5587 Acc: 91.72%
+Step 86600 | Train Loss: 0.4413 Acc: 96.57%
+Step 86700 | Train Loss: 0.5097 Acc: 92.79%
+Step 86800 | Train Loss: 0.5160 Acc: 93.09%
+Step 86900 | Train Loss: 0.6497 Acc: 87.74%
+Step 87000 | Train Loss: 0.5592 Acc: 90.86% | Test Loss: 0.1132 Acc: 97.38% | Solved: 912/1000
+Step 87100 | Train Loss: 0.4748 Acc: 94.35%
+Step 87200 | Train Loss: 0.5371 Acc: 93.08%
+Step 87300 | Train Loss: 0.4761 Acc: 93.92%
+Step 87400 | Train Loss: 0.4495 Acc: 94.95%
+Step 87500 | Train Loss: 0.4839 Acc: 95.24%
+Step 87600 | Train Loss: 0.4823 Acc: 93.81%
+Step 87700 | Train Loss: 0.5232 Acc: 93.21%
+Step 87800 | Train Loss: 0.5524 Acc: 91.62%
+Step 87900 | Train Loss: 0.5073 Acc: 93.88%
+Step 88000 | Train Loss: 0.5095 Acc: 93.28% | Test Loss: 0.0828 Acc: 98.04% | Solved: 933/1000
+Step 88100 | Train Loss: 0.4813 Acc: 94.36%
+Step 88200 | Train Loss: 0.5017 Acc: 93.95%
+Step 88300 | Train Loss: 0.5214 Acc: 92.67%
+Step 88400 | Train Loss: 0.4717 Acc: 95.03%
+Step 88500 | Train Loss: 0.5191 Acc: 93.73%
+Step 88600 | Train Loss: 0.5241 Acc: 92.41%
+Step 88700 | Train Loss: 0.5102 Acc: 92.63%
+Step 88800 | Train Loss: 0.4947 Acc: 93.32%
+Step 88900 | Train Loss: 0.5109 Acc: 93.76%
+Step 89000 | Train Loss: 0.4987 Acc: 94.09% | Test Loss: 0.0879 Acc: 97.89% | Solved: 933/1000
+Step 89100 | Train Loss: 0.5148 Acc: 94.13%
+Step 89200 | Train Loss: 0.5350 Acc: 92.93%
+Step 89300 | Train Loss: 0.5175 Acc: 93.62%
+Step 89400 | Train Loss: 0.6000 Acc: 89.96%
+Step 89500 | Train Loss: 0.5122 Acc: 94.08%
+Step 89600 | Train Loss: 0.5229 Acc: 93.02%
+Step 89700 | Train Loss: 0.4730 Acc: 94.08%
+Step 89800 | Train Loss: 0.5265 Acc: 92.26%
+Step 89900 | Train Loss: 0.4972 Acc: 93.94%
+Step 90000 | Train Loss: 0.5067 Acc: 93.93% | Test Loss: 0.0688 Acc: 98.30% | Solved: 932/1000
+Step 90100 | Train Loss: 0.5067 Acc: 93.87%
+Step 90200 | Train Loss: 0.4804 Acc: 94.80%
+Step 90300 | Train Loss: 0.4947 Acc: 94.54%
+Step 90400 | Train Loss: 0.4768 Acc: 94.21%
+Step 90500 | Train Loss: 0.4824 Acc: 94.80%
+Step 90600 | Train Loss: 0.4998 Acc: 93.34%
+Step 90700 | Train Loss: 0.4909 Acc: 95.61%
+Step 90800 | Train Loss: 0.4530 Acc: 94.90%
+Step 90900 | Train Loss: 0.4601 Acc: 95.74%
+Step 91000 | Train Loss: 0.4541 Acc: 96.35% | Test Loss: 0.0463 Acc: 98.82% | Solved: 958/1000
+Step 91100 | Train Loss: 0.5470 Acc: 92.13%
+Step 91200 | Train Loss: 0.4752 Acc: 94.83%
+Step 91300 | Train Loss: 0.5334 Acc: 92.87%
+Step 91400 | Train Loss: 0.5140 Acc: 92.68%
+Step 91500 | Train Loss: 0.5017 Acc: 94.37%
+Step 91600 | Train Loss: 0.4563 Acc: 94.83%
+Step 91700 | Train Loss: 0.4444 Acc: 96.38%
+Step 91800 | Train Loss: 0.4573 Acc: 95.48%
+Step 91900 | Train Loss: 0.4567 Acc: 95.91%
+Step 92000 | Train Loss: 0.5086 Acc: 93.46% | Test Loss: 0.1106 Acc: 97.44% | Solved: 903/1000
+Step 92100 | Train Loss: 0.4881 Acc: 94.27%
+Step 92200 | Train Loss: 0.4351 Acc: 96.24%
+Step 92300 | Train Loss: 0.5145 Acc: 93.22%
+Step 92400 | Train Loss: 0.4733 Acc: 94.89%
+Step 92500 | Train Loss: 0.4753 Acc: 93.23%
+Step 92600 | Train Loss: 0.4742 Acc: 94.24%
+Step 92700 | Train Loss: 0.5088 Acc: 93.26%
+Step 92800 | Train Loss: 0.5380 Acc: 92.60%
+Step 92900 | Train Loss: 0.5659 Acc: 91.94%
+Step 93000 | Train Loss: 0.4830 Acc: 93.80% | Test Loss: 0.0838 Acc: 98.13% | Solved: 935/1000
+Step 93100 | Train Loss: 0.5322 Acc: 92.44%
+Step 93200 | Train Loss: 0.4974 Acc: 94.37%
+Step 93300 | Train Loss: 0.4299 Acc: 96.02%
+Step 93400 | Train Loss: 0.4705 Acc: 94.48%
+Step 93500 | Train Loss: 0.4774 Acc: 94.58%
+Step 93600 | Train Loss: 0.5108 Acc: 93.15%
+Step 93700 | Train Loss: 0.4781 Acc: 93.96%
+Step 93800 | Train Loss: 0.5005 Acc: 93.22%
+Step 93900 | Train Loss: 0.5629 Acc: 92.02%
+Step 94000 | Train Loss: 0.4530 Acc: 94.55% | Test Loss: 0.0804 Acc: 98.18% | Solved: 936/1000
+Step 94100 | Train Loss: 0.4535 Acc: 94.61%
+Step 94200 | Train Loss: 0.5898 Acc: 90.47%
+Step 94300 | Train Loss: 0.4622 Acc: 95.15%
+Step 94400 | Train Loss: 0.6067 Acc: 89.33%
+Step 94500 | Train Loss: 0.5430 Acc: 92.89%
+Step 94600 | Train Loss: 0.4549 Acc: 94.47%
+Step 94700 | Train Loss: 0.5402 Acc: 92.29%
+Step 94800 | Train Loss: 0.4714 Acc: 94.93%
+Step 94900 | Train Loss: 0.5478 Acc: 92.23%
+Step 95000 | Train Loss: 0.6742 Acc: 85.29% | Test Loss: 0.1515 Acc: 96.19% | Solved: 852/1000
+Step 95100 | Train Loss: 0.5331 Acc: 92.73%
+Step 95200 | Train Loss: 0.5912 Acc: 89.97%
+Step 95300 | Train Loss: 0.5391 Acc: 93.24%
+Step 95400 | Train Loss: 0.5118 Acc: 92.87%
+Step 95500 | Train Loss: 0.5340 Acc: 92.47%
+Step 95600 | Train Loss: 0.4358 Acc: 96.05%
+Step 95700 | Train Loss: 0.4851 Acc: 95.40%
+Step 95800 | Train Loss: 0.4780 Acc: 95.36%
+Step 95900 | Train Loss: 0.4694 Acc: 95.13%
+Step 96000 | Train Loss: 0.5323 Acc: 92.58% | Test Loss: 0.1099 Acc: 97.57% | Solved: 921/1000
+Step 96100 | Train Loss: 0.5796 Acc: 90.11%
+Step 96200 | Train Loss: 0.4780 Acc: 95.31%
+Step 96300 | Train Loss: 0.5010 Acc: 93.63%
+Step 96400 | Train Loss: 0.5958 Acc: 90.18%
+Step 96500 | Train Loss: 0.5349 Acc: 93.20%
+Step 96600 | Train Loss: 0.4549 Acc: 95.14%
+Step 96700 | Train Loss: 0.4832 Acc: 94.65%
+Step 96800 | Train Loss: 0.4677 Acc: 95.52%
+Step 96900 | Train Loss: 0.4725 Acc: 95.05%
+Step 97000 | Train Loss: 0.4618 Acc: 94.70% | Test Loss: 0.0848 Acc: 98.05% | Solved: 933/1000
+Step 97100 | Train Loss: 0.4824 Acc: 95.21%
+Step 97200 | Train Loss: 0.4727 Acc: 95.20%
+Step 97300 | Train Loss: 0.4840 Acc: 94.92%
+Step 97400 | Train Loss: 0.4950 Acc: 94.00%
+Step 97500 | Train Loss: 0.4948 Acc: 94.27%
+Step 97600 | Train Loss: 0.4977 Acc: 93.32%
+Step 97700 | Train Loss: 0.5118 Acc: 94.32%
+Step 97800 | Train Loss: 0.4460 Acc: 95.27%
+Step 97900 | Train Loss: 0.5138 Acc: 93.66%
+Step 98000 | Train Loss: 0.4804 Acc: 93.91% | Test Loss: 0.0804 Acc: 98.19% | Solved: 936/1000
+Step 98100 | Train Loss: 0.4790 Acc: 95.46%
+Step 98200 | Train Loss: 0.5095 Acc: 93.29%
+Step 98300 | Train Loss: 0.5756 Acc: 91.49%
+Step 98400 | Train Loss: 0.4376 Acc: 95.75%
+Step 98500 | Train Loss: 0.5029 Acc: 93.76%
+Step 98600 | Train Loss: 0.5150 Acc: 92.95%
+Step 98700 | Train Loss: 0.4392 Acc: 95.34%
+Step 98800 | Train Loss: 0.4589 Acc: 94.57%
+Step 98900 | Train Loss: 0.5290 Acc: 92.36%
+Step 99000 | Train Loss: 0.4937 Acc: 93.87% | Test Loss: 0.0871 Acc: 97.96% | Solved: 926/1000
+Step 99100 | Train Loss: 0.4749 Acc: 94.85%
+Step 99200 | Train Loss: 0.4685 Acc: 95.02%
+Step 99300 | Train Loss: 0.4670 Acc: 95.37%
+Step 99400 | Train Loss: 0.5359 Acc: 93.48%
+Step 99500 | Train Loss: 0.6157 Acc: 89.12%
+Step 99600 | Train Loss: 0.4926 Acc: 93.92%
+Step 99700 | Train Loss: 0.4903 Acc: 94.35%
+Step 99800 | Train Loss: 0.4900 Acc: 93.98%
+Step 99900 | Train Loss: 0.4595 Acc: 95.37%
+Step 99999 | Train Loss: 0.4500 Acc: 94.38% | Test Loss: 0.0789 Acc: 98.12% | Solved: 930/1000
+
+Final Test: Loss 0.0789 | Acc 98.1% | 930/1000 puzzles solved
