@@ -1,0 +1,112 @@
+Step     0 | Train Loss: 2.8133 Acc: 11.16%
+Step  1000 | Train Loss: 0.9225 Acc: 67.99%
+Step  2000 | Train Loss: 0.8094 Acc: 75.39%
+Step  3000 | Train Loss: 0.7167 Acc: 81.14%
+Step  4000 | Train Loss: 0.6630 Acc: 85.59%
+Step  5000 | Train Loss: 0.6674 Acc: 86.37%
+Step  6000 | Train Loss: 0.5965 Acc: 90.09%
+Step  7000 | Train Loss: 0.5932 Acc: 90.47%
+Step  8000 | Train Loss: 0.5892 Acc: 90.70%
+Step  9000 | Train Loss: 0.6133 Acc: 89.40%
+Step 10000 | Train Loss: 0.6088 Acc: 89.87%
+Step 11000 | Train Loss: 0.5798 Acc: 90.66%
+Step 12000 | Train Loss: 0.6171 Acc: 89.84%
+Step 13000 | Train Loss: 0.6627 Acc: 88.12%
+Step 14000 | Train Loss: 0.5490 Acc: 92.50%
+Step 15000 | Train Loss: 0.6768 Acc: 86.61%
+Step 16000 | Train Loss: 0.6250 Acc: 89.81%
+Step 17000 | Train Loss: 0.6157 Acc: 89.46%
+Step 18000 | Train Loss: 0.5561 Acc: 92.24%
+Step 19000 | Train Loss: 0.5805 Acc: 91.75%
+Step 20000 | Train Loss: 0.5824 Acc: 91.59%
+Step 21000 | Train Loss: 0.5929 Acc: 90.94%
+Step 22000 | Train Loss: 0.6032 Acc: 89.72%
+Step 23000 | Train Loss: 0.5459 Acc: 92.01%
+Step 24000 | Train Loss: 0.5838 Acc: 91.04%
+Step 25000 | Train Loss: 0.4991 Acc: 94.61%
+Step 26000 | Train Loss: 0.5983 Acc: 89.77%
+Step 27000 | Train Loss: 0.5608 Acc: 91.67%
+Step 28000 | Train Loss: 0.5502 Acc: 92.73%
+Step 29000 | Train Loss: 0.5606 Acc: 92.62%
+Step 30000 | Train Loss: 0.5661 Acc: 91.18%
+Step 31000 | Train Loss: 0.5558 Acc: 92.75%
+Step 32000 | Train Loss: 0.5590 Acc: 92.54%
+Step 33000 | Train Loss: 0.5367 Acc: 92.61%
+Step 34000 | Train Loss: 0.5104 Acc: 94.16%
+Step 35000 | Train Loss: 0.5889 Acc: 91.19%
+Step 36000 | Train Loss: 0.5118 Acc: 93.21%
+Step 37000 | Train Loss: 0.5048 Acc: 93.96%
+Step 38000 | Train Loss: 0.5253 Acc: 93.76%
+Step 39000 | Train Loss: 0.5241 Acc: 92.83%
+Step 40000 | Train Loss: 0.4799 Acc: 94.14%
+Step 41000 | Train Loss: 0.5036 Acc: 94.14%
+Step 42000 | Train Loss: 0.6120 Acc: 90.25%
+Step 43000 | Train Loss: 0.5560 Acc: 92.76%
+Step 44000 | Train Loss: 0.5244 Acc: 92.20%
+Step 45000 | Train Loss: 0.5047 Acc: 94.33%
+Step 46000 | Train Loss: 0.4996 Acc: 94.66%
+Step 47000 | Train Loss: 0.6494 Acc: 89.25%
+Step 48000 | Train Loss: 0.5433 Acc: 92.69%
+Step 49000 | Train Loss: 0.5086 Acc: 94.01%
+Step 50000 | Train Loss: 0.5588 Acc: 91.72%
+Step 51000 | Train Loss: 0.5811 Acc: 91.00%
+Step 52000 | Train Loss: 0.5076 Acc: 94.04%
+Step 53000 | Train Loss: 0.6338 Acc: 88.44%
+Step 54000 | Train Loss: 0.4980 Acc: 92.26%
+Step 55000 | Train Loss: 0.6077 Acc: 90.37%
+Step 56000 | Train Loss: 0.4687 Acc: 95.17%
+Step 57000 | Train Loss: 0.4974 Acc: 93.38%
+Step 58000 | Train Loss: 0.4754 Acc: 94.00%
+Step 59000 | Train Loss: 0.5506 Acc: 91.87%
+Step 60000 | Train Loss: 0.4938 Acc: 93.58%
+Step 61000 | Train Loss: 0.4605 Acc: 94.98%
+Step 62000 | Train Loss: 0.4705 Acc: 94.90%
+Step 63000 | Train Loss: 0.5058 Acc: 93.58%
+Step 64000 | Train Loss: 0.4786 Acc: 94.34%
+Step 65000 | Train Loss: 0.5052 Acc: 94.04%
+Step 66000 | Train Loss: 0.4888 Acc: 93.53%
+Step 67000 | Train Loss: 0.4788 Acc: 94.33%
+Step 68000 | Train Loss: 0.4837 Acc: 94.03%
+Step 69000 | Train Loss: 0.4656 Acc: 95.81%
+Step 70000 | Train Loss: 0.5006 Acc: 92.82%
+Step 71000 | Train Loss: 0.4459 Acc: 94.99%
+Step 72000 | Train Loss: 0.5423 Acc: 92.70%
+Step 73000 | Train Loss: 0.4804 Acc: 95.36%
+Step 74000 | Train Loss: 0.4699 Acc: 94.82%
+Step 75000 | Train Loss: 0.4548 Acc: 94.76%
+Step 76000 | Train Loss: 0.5033 Acc: 94.15%
+Step 77000 | Train Loss: 0.5588 Acc: 92.24%
+Step 78000 | Train Loss: 0.5472 Acc: 91.78%
+Step 79000 | Train Loss: 0.4610 Acc: 94.06%
+Step 80000 | Train Loss: 0.4583 Acc: 94.37%
+Step 81000 | Train Loss: 0.4553 Acc: 95.02%
+Step 82000 | Train Loss: 0.5262 Acc: 91.85%
+Step 83000 | Train Loss: 0.4763 Acc: 95.38%
+Step 84000 | Train Loss: 0.5073 Acc: 94.42%
+Step 85000 | Train Loss: 0.4931 Acc: 95.20%
+Step 86000 | Train Loss: 0.4648 Acc: 95.44%
+Step 87000 | Train Loss: 0.4812 Acc: 94.44%
+Step 88000 | Train Loss: 0.4718 Acc: 94.33%
+Step 89000 | Train Loss: 0.4651 Acc: 96.37%
+Step 90000 | Train Loss: 0.4591 Acc: 94.54%
+Step 91000 | Train Loss: 0.5515 Acc: 92.12%
+Step 92000 | Train Loss: 0.4287 Acc: 96.10%
+Step 93000 | Train Loss: 0.6031 Acc: 89.59%
+Step 94000 | Train Loss: 0.4703 Acc: 94.33%
+Step 95000 | Train Loss: 0.4555 Acc: 94.50%
+Step 96000 | Train Loss: 0.4011 Acc: 96.85%
+Step 97000 | Train Loss: 0.4443 Acc: 96.36%
+Step 98000 | Train Loss: 0.4416 Acc: 96.47%
+Step 99000 | Train Loss: 0.4028 Acc: 97.38%
+Step 99999 | Train Loss: 0.4500 Acc: 96.38%
+
+============================================================
+ZERO-SHOT EVALUATION ON DIFFERENT DIFFICULTIES
+(Model trained on difficulty 0.0 only)
+============================================================
+Difficulty 0.0 (train) :  977/1000 solved ( 97.7%), cell acc: 99.4%
+Difficulty 1.x         :  653/1000 solved ( 65.3%), cell acc: 90.1%
+Difficulty 2.x         :  476/1000 solved ( 47.6%), cell acc: 83.5%
+Difficulty 3.x         :  279/1000 solved ( 27.9%), cell acc: 76.2%
+Difficulty 4.x         :  193/1000 solved ( 19.3%), cell acc: 73.0%
+Difficulty 5.x+        :  125/1000 solved ( 12.5%), cell acc: 70.4%

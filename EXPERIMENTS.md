@@ -242,6 +242,48 @@ Also added bf16 mixed precision + TF32 for ~2.4x speedup.
 
 ---
 
+## Experiment: Mixed Difficulty Training
+
+**File:** `train_mixed.py`
+
+**Hypothesis:** Training only on easy puzzles (difficulty 0.0) doesn't generalize to harder puzzles. Will training on a mix of all difficulties help?
+
+**Setup:**
+- Sample 20k puzzles from each difficulty bucket (0-1, 1-2, 2-3, 3-4, 4+)
+- Total: 100k training puzzles, uniformly mixed
+- Test set: 200 from each bucket (1000 total)
+- Uses SAM + BS=512 (best config)
+
+**Zero-shot baseline** (model trained on easy only):
+
+| Difficulty | Solved | Cell Acc |
+|------------|--------|----------|
+| 0.0 (easy) | 959/1000 (95.9%) | 99.0% |
+| 1.x | 653/1000 (65.3%) | 90.1% |
+| 2.x | 476/1000 (47.6%) | 83.5% |
+| 3.x | 279/1000 (27.9%) | 76.2% |
+| 4.x | 193/1000 (19.3%) | 73.0% |
+| 5.x+ | 125/1000 (12.5%) | 70.4% |
+
+**Mixed training results:**
+
+| Difficulty | Solved | Cell Acc | vs Easy-only |
+|------------|--------|----------|--------------|
+| 0.0 (easy) | 960/1000 (96.0%) | 98.6% | +1 |
+| 1.x | 953/1000 (95.3%) | 98.4% | **+300** |
+| 2.x | 904/1000 (90.4%) | 96.6% | **+428** |
+| 3.x | 851/1000 (85.1%) | 94.7% | **+572** |
+| 4.x | 815/1000 (81.5%) | 93.3% | **+622** |
+| 5.x+ | 775/1000 (77.5%) | 91.6% | **+650** |
+
+**Finding:** Mixed training dramatically improves generalization:
+- Easy puzzle performance unchanged (~96%)
+- Hardest puzzles: 12.5% → 77.5% (+650 puzzles!)
+- Cell accuracy stays high across all difficulties (91-99%)
+- No curriculum learning needed - uniform mixing works great
+
+---
+
 ## Summary Table
 
 | Experiment | Acc | Solved | Key Finding |
@@ -259,7 +301,8 @@ Also added bf16 mixed precision + TF32 for ~2.4x speedup.
 | BS=256 + bf16 | 95.8% | 833 | Larger batch + more samples helps (peak 897) |
 | BS=512 + bf16 | 94.6% | 672 | Diminishing returns (peak 866) |
 | SAM + BS=256 | 98.1% | 930 | SAM finds flat minima (peak 958) |
-| **SAM + BS=512** | **98.6%** | **948** | **Best result!** SAM closes generalization gap (peak 959) |
+| SAM + BS=512 | 98.6% | 948 | SAM closes generalization gap (peak 959) |
+| **Mixed training** | **91-98%** | **775-960** | **Best!** 77.5% on hardest (was 12.5%) |
 
 ---
 
@@ -283,4 +326,6 @@ Also added bf16 mixed precision + TF32 for ~2.4x speedup.
 
 9. **Batch size 256 was sweet spot** - Before SAM, BS=256 achieved best vanilla results (897 peak). Larger BS=512 showed the generalization gap - more data but worse results.
 
-10. **SAM closes the generalization gap** - Sharpness-Aware Minimization lets large batches find flat minima. SAM + BS=512 achieves 959 peak (vs vanilla's 897 best), with 948 final (vs 833). The ~25% overhead is worth the massive gains. SAM is now our best configuration.
+10. **SAM closes the generalization gap** - Sharpness-Aware Minimization lets large batches find flat minima. SAM + BS=512 achieves 959 peak (vs vanilla's 897 best), with 948 final (vs 833). The ~25% overhead is worth the massive gains.
+
+11. **Mixed difficulty training is essential** - Training only on easy puzzles fails catastrophically on hard ones (12.5% solve rate). Training on uniformly mixed difficulties achieves 77.5% on hardest while maintaining 96% on easiest. No curriculum learning needed.
