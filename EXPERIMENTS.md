@@ -284,6 +284,50 @@ Also added bf16 mixed precision + TF32 for ~2.4x speedup.
 
 ---
 
+## Experiment: Hard-Only Training
+
+**File:** `train_hard.py`
+
+**Hypothesis:** If the model learns to solve hard puzzles, easy ones should come "for free" - hard reasoning subsumes easy reasoning.
+
+**Setup:**
+- Train only on puzzles with difficulty >= 3.0 (~320k available)
+- 100k training steps, SAM + BS=512
+- Test on all difficulty levels
+
+**Results:**
+
+| Difficulty | Hard-Only | Mixed | Delta |
+|------------|-----------|-------|-------|
+| 0.0 (easy) | 913/1000 (91.3%) | 960/1000 (96.0%) | **-47** |
+| 1.x | 702/1000 (70.2%) | 953/1000 (95.3%) | **-251** |
+| 2.x | 570/1000 (57.0%) | 904/1000 (90.4%) | **-334** |
+| 3.x | 879/1000 (87.9%) | 851/1000 (85.1%) | +28 |
+| 4.x | 836/1000 (83.6%) | 815/1000 (81.5%) | +21 |
+| 5.x+ | 800/1000 (80.0%) | 775/1000 (77.5%) | +25 |
+
+**Finding:** The "hard subsumes easy" hypothesis is **FALSE**:
+
+- Hard-only is better on hard puzzles (3.x+): +21-28 puzzles per bucket
+- Hard-only is **much worse** on easy puzzles (0.x-2.x): -47 to -334 puzzles per bucket
+- The skills don't transfer bidirectionally
+
+**Why doesn't hard subsume easy?**
+
+Several theories:
+
+1. **Simplicity bias**: Neural nets naturally learn simple patterns first, then compose them for complex cases. Training only on hard puzzles may force the model to learn complex patterns that don't decompose well to simple cases.
+
+2. **Distribution shift**: Easy puzzles have many "naked singles" (cells with only one legal value). Hard puzzles require chain reasoning. The model trained on hard puzzles may over-rely on chain reasoning even when simpler deduction suffices.
+
+3. **Different skills, not a spectrum**: Easy and hard Sudoku may require qualitatively different reasoning strategies, not just "more" of the same skill. This mirrors the distinction between reasoning and non-reasoning language models - they may be fundamentally different capabilities.
+
+4. **Task interference**: Hard puzzle patterns may interfere with learning easy puzzle patterns, similar to how training a language model for complex reasoning can hurt its performance on simple factual recall.
+
+This result suggests that **difficulty levels are not strictly hierarchical** - expertise at hard puzzles doesn't automatically confer expertise at easy puzzles. Mixed training remains the best strategy.
+
+---
+
 ## Summary Table
 
 | Experiment | Acc | Solved | Key Finding |
@@ -303,6 +347,7 @@ Also added bf16 mixed precision + TF32 for ~2.4x speedup.
 | SAM + BS=256 | 98.1% | 930 | SAM finds flat minima (peak 958) |
 | SAM + BS=512 | 98.6% | 948 | SAM closes generalization gap (peak 959) |
 | **Mixed training** | **91-98%** | **775-960** | **Best!** 77.5% on hardest (was 12.5%) |
+| Hard-only | 57-91% | 570-913 | Hard doesn't subsume easy |
 
 ---
 
@@ -329,3 +374,5 @@ Also added bf16 mixed precision + TF32 for ~2.4x speedup.
 10. **SAM closes the generalization gap** - Sharpness-Aware Minimization lets large batches find flat minima. SAM + BS=512 achieves 959 peak (vs vanilla's 897 best), with 948 final (vs 833). The ~25% overhead is worth the massive gains.
 
 11. **Mixed difficulty training is essential** - Training only on easy puzzles fails catastrophically on hard ones (12.5% solve rate). Training on uniformly mixed difficulties achieves 77.5% on hardest while maintaining 96% on easiest. No curriculum learning needed.
+
+12. **Hard doesn't subsume easy** - Training only on hard puzzles (difficulty >= 3.0) improves hard puzzle performance (+25 puzzles on 5.x+) but **hurts** easy puzzle performance (-334 puzzles on 2.x). This suggests easy and hard Sudoku require qualitatively different reasoning skills, not just "more" of the same skill. This parallels the distinction between reasoning and non-reasoning language models - they may be fundamentally different capabilities that don't transfer bidirectionally.
