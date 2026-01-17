@@ -376,3 +376,63 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 11. **Mixed difficulty training is essential** - Training only on easy puzzles fails catastrophically on hard ones (12.5% solve rate). Training on uniformly mixed difficulties achieves 77.5% on hardest while maintaining 96% on easiest. No curriculum learning needed.
 
 12. **Hard doesn't subsume easy** - Training only on hard puzzles (difficulty >= 3.0) improves hard puzzle performance (+25 puzzles on 5.x+) but **hurts** easy puzzle performance (-334 puzzles on 2.x). This suggests easy and hard Sudoku require qualitatively different reasoning skills, not just "more" of the same skill. This parallels the distinction between reasoning and non-reasoning language models - they may be fundamentally different capabilities that don't transfer bidirectionally.
+
+13. **Reverse curriculum beats traditional curriculum** - See curriculum learning experiment below. Starting with hard puzzles (hard→easy) outperforms both mixed training and traditional curriculum (easy→hard). Traditional curriculum actually hurts performance.
+
+---
+
+## Experiment: Curriculum Learning
+
+**Files:** `train_curriculum.py`, `train_curriculum_reverse.py`, `train_mixed.py`
+
+**Hypothesis:** Does the order of difficulty exposure matter? Traditional curriculum learning (easy→hard) is widely used, but maybe for iterative reasoning tasks, starting with hard problems builds better foundations.
+
+**Setup:**
+- ~2.7M training puzzles (all kept on CPU, batch moved to GPU per step)
+- 100k steps, SAM + BS=512
+- Test: 500 puzzles per bucket × 5 = 2500 total
+- Train/test split: `iloc[:-500]` for train, `tail(500)` for test (verified 0 overlap)
+
+**Phase schedules:**
+
+| Steps | Curriculum (Easy→Hard) | Reverse (Hard→Easy) |
+|-------|------------------------|---------------------|
+| 0-20k | 0.0-1.0 only | 3.0+ only |
+| 20-40k | 0.0-2.0 | 2.0+ |
+| 40-60k | 0.0-3.0 | 1.0+ |
+| 60-80k | 0.0-4.0 | All |
+| 80-100k | All | All |
+
+Mixed training uses all difficulties from step 0.
+
+**Results:**
+
+| Method | 0.0 | 1.x | 2.x | 3.x | 4.x+ | Total |
+|--------|-----|-----|-----|-----|------|-------|
+| Curriculum | 98.8% | 84.2% | 69.6% | 60.0% | 45.4% | **1790 (71.6%)** |
+| Mixed | 98.4% | 87.0% | 75.0% | 67.8% | 57.8% | **1930 (77.2%)** |
+| **Reverse** | 99.6% | 90.4% | 79.0% | 67.8% | 62.0% | **1994 (79.8%)** |
+
+**Key findings:**
+
+1. **Reverse curriculum wins** (+204 over curriculum, +64 over mixed)
+2. **Traditional curriculum hurts** - actually worse than mixed training
+3. **Hard puzzles benefit most**: reverse achieves 62% vs curriculum's 45.4% (37% relative improvement)
+4. **No trade-off on easy**: Reverse scores highest on easy puzzles too (99.6%)
+
+**Why reverse works:**
+
+- **Hard-first forces robust features**: Model must learn actual constraint propagation, not shortcuts
+- **Easy puzzles don't teach reasoning**: Many can be solved with simple pattern matching
+- **Transfer is asymmetric**: Hard→easy skills transfer well; easy→hard skills don't
+- **Iterative architecture benefits**: The 16-iteration design needs multi-step reasoning that hard puzzles demand
+
+**Why traditional curriculum fails:**
+
+Traditional curriculum learning works well when easier tasks teach foundational skills that compose into harder skills. For Sudoku, this assumption breaks down:
+- Easy puzzles can be "solved" with pattern matching shortcuts
+- These shortcuts don't generalize to hard puzzles
+- The model must unlearn these shortcuts when hard puzzles arrive
+- By then, training is partially wasted on the wrong inductive biases
+
+**Conclusion:** For iterative reasoning tasks, consider **anti-curriculum (hard→easy)** over traditional curriculum learning.

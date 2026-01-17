@@ -1,5 +1,5 @@
-# Train on mixed difficulties (sample uniformly from all difficulty levels)
-# Uses SAM + BS=512
+# Curriculum learning: Easy → Hard
+# Train in phases, gradually increasing difficulty
 
 import torch
 import torch.nn as nn
@@ -60,6 +60,16 @@ lr = 1e-3
 total_steps = 100000
 batch_size = 512
 sam_rho = 0.05
+
+# Curriculum phases - 20k steps each, progressively harder
+# (start_step, end_step, max_difficulty, name)
+PHASES = [
+    (0, 20000, 1.0, "Phase 1: Easy (0.0-1.0)"),
+    (20000, 40000, 2.0, "Phase 2: Easy+Medium (0.0-2.0)"),
+    (40000, 60000, 3.0, "Phase 3: Up to Medium-Hard (0.0-3.0)"),
+    (60000, 80000, 4.0, "Phase 4: Up to Hard (0.0-4.0)"),
+    (80000, 100000, 10.0, "Phase 5: All difficulties (0.0+)"),
+]
 
 ROW_IDX = torch.tensor([i // 9 for i in range(81)])
 COL_IDX = torch.tensor([i % 9 for i in range(81)])
@@ -154,10 +164,13 @@ for min_diff, max_diff in BUCKETS:
     }
     print("done")
 
-# All buckets used for mixed training
-all_buckets = list(bucket_data.keys())
-total_train = sum(bucket_data[b]['size'] for b in all_buckets)
-print(f"Total training: {total_train} puzzles from {len(all_buckets)} buckets")
+# Build phase bucket lists
+phase_buckets = {}
+for start, end, max_diff, name in PHASES:
+    buckets_for_phase = [k for k in bucket_data.keys() if k[0] < max_diff]
+    total = sum(bucket_data[k]['size'] for k in buckets_for_phase)
+    phase_buckets[max_diff] = buckets_for_phase
+    print(f"  {name}: {total} total puzzles from {len(buckets_for_phase)} buckets")
 
 # Test set: 500 from each difficulty bucket (on GPU for fast eval)
 print("\nPreparing test data...")
@@ -195,21 +208,31 @@ model = torch.compile(model)
 
 optimizer = SAM(model.parameters(), torch.optim.AdamW, rho=sam_rho, lr=lr, betas=(0.9, 0.95))
 
-print(f"\nMixed Training (uniform sampling from all difficulties)")
+print(f"\nCurriculum Learning: Easy -> Hard")
 print(f"Total steps: {total_steps}, BS={batch_size}, SAM rho={sam_rho}")
 
-log_file = open("train_log_mixed.txt", "w")
+log_file = open("train_curriculum.txt", "w")
 def log(msg):
     print(msg)
     log_file.write(msg + "\n")
     log_file.flush()
 
 
-def sample_batch(batch_size):
-    """Sample batch from all buckets proportionally, move to GPU."""
-    sizes = [bucket_data[b]['size'] for b in all_buckets]
+def get_phase(step):
+    """Get phase buckets for current step."""
+    for start, end, max_diff, name in PHASES:
+        if start <= step < end:
+            return phase_buckets[max_diff], name
+    return None, None
+
+
+def sample_batch(active_buckets, batch_size):
+    """Sample batch from active buckets, move to GPU."""
+    # Calculate total size and weights
+    sizes = [bucket_data[b]['size'] for b in active_buckets]
     total = sum(sizes)
 
+    # Sample indices: which bucket and which index within bucket
     x_list = []
     holes_list = []
     counts_list = []
@@ -218,7 +241,7 @@ def sample_batch(batch_size):
         # Pick bucket proportionally
         r = random.randint(0, total - 1)
         cumsum = 0
-        for b, s in zip(all_buckets, sizes):
+        for b, s in zip(active_buckets, sizes):
             cumsum += s
             if r < cumsum:
                 # Sample from this bucket
@@ -294,11 +317,25 @@ def evaluate_all():
     return results
 
 
+current_phase_name = None
+current_buckets = None
+
 for step in range(total_steps):
+    buckets, phase_name = get_phase(step)
+
+    if phase_name != current_phase_name:
+        current_phase_name = phase_name
+        current_buckets = buckets
+        total_puzzles = sum(bucket_data[b]['size'] for b in buckets)
+        log(f"\n{'='*60}")
+        log(f"Step {step}: Entering {phase_name}")
+        log(f"Training pool: {total_puzzles} puzzles")
+        log(f"{'='*60}\n")
+
     model.train()
 
-    # Sample batch from all buckets (CPU -> GPU)
-    x_batch, holes_batch, counts_batch = sample_batch(batch_size)
+    # Sample batch from active buckets (CPU -> GPU)
+    x_batch, holes_batch, counts_batch = sample_batch(current_buckets, batch_size)
 
     # SAM step 1
     optimizer.zero_grad()
@@ -332,7 +369,7 @@ for step in range(total_steps):
 
 # Final evaluation
 log("\n" + "="*60)
-log("FINAL RESULTS - Mixed Training")
+log("FINAL RESULTS - Curriculum Learning (Easy -> Hard)")
 log("="*60)
 results = evaluate_all()
 for name, r in results.items():
@@ -342,7 +379,7 @@ total_solved = sum(r['solved'] for r in results.values())
 log(f"\nTotal: {total_solved}/2500 solved")
 
 # Save model
-torch.save({k.replace('_orig_mod.', ''): v for k, v in model.state_dict().items()}, "model_mixed.pt")
-log("Model saved to model_mixed.pt")
+torch.save({k.replace('_orig_mod.', ''): v for k, v in model.state_dict().items()}, "model_curriculum.pt")
+log("Model saved to model_curriculum.pt")
 
 log_file.close()
