@@ -436,3 +436,69 @@ Traditional curriculum learning works well when easier tasks teach foundational 
 - By then, training is partially wasted on the wrong inductive biases
 
 **Conclusion:** For iterative reasoning tasks, consider **anti-curriculum (hard→easy)** over traditional curriculum learning.
+
+---
+
+## Inconclusive: Scaling Experiments (BS confounded)
+
+**Files:** `exp_scale_model.py`, `exp_scale_iter.py`
+
+**Note:** These experiments are inconclusive because they required reducing batch size from 512 to 256 due to memory constraints. The BS change is a significant confounder since BS=512+SAM was our optimal training config.
+
+### Scale Model (d=192, L=6)
+
+**Hypothesis:** Larger model capacity might improve performance, especially on hard puzzles.
+
+**Change:**
+- d_model: 128 → 192
+- n_layers: 4 → 6
+- n_heads: 4 → 6
+- d_ff: 512 → 768
+- ~3x parameters (~2.4M vs ~800k)
+- BS: 512 → 256 (memory constraint)
+
+**Results:** 1888/2500 (75.5%) vs baseline 1994/2500 (79.8%)
+
+| Difficulty | Scale Model | Baseline | Delta |
+|------------|-------------|----------|-------|
+| 0.0 | 98.6% | 99.6% | -1.0% |
+| 1.x | 86.8% | 90.4% | -3.6% |
+| 2.x | 73.4% | 79.0% | -5.6% |
+| 3.x | 61.8% | 67.8% | -6.0% |
+| 4.x+ | 57.0% | 62.0% | -5.0% |
+
+**Observation:** Performed worse than baseline, but unclear if due to smaller BS or model size. Peak was 1982/2500 at step 70k.
+
+### Scale Iterations (32)
+
+**Hypothesis:** More iterations = more "thinking time" for constraint propagation, should help hard puzzles.
+
+**Change:**
+- n_iterations: 16 → 32
+- BS: 512 → 256 (memory constraint)
+
+**Results:** 1559/2500 (62.4%) vs baseline 1994/2500 (79.8%)
+
+| Difficulty | 32 Iter | Baseline | Delta |
+|------------|---------|----------|-------|
+| 0.0 | 89.2% | 99.6% | -10.4% |
+| 1.x | 73.0% | 90.4% | -17.4% |
+| 2.x | 57.2% | 79.0% | -21.8% |
+| 3.x | 50.4% | 67.8% | -17.4% |
+| 4.x+ | 42.0% | 62.0% | -20.0% |
+
+**Observation:** Catastrophic failure. Training was extremely unstable:
+- Loss spikes to 1.5+ throughout training
+- Complete collapse at step 90k (solved 1/2500 puzzles)
+- Never recovered to competitive performance
+
+**Why 32 iterations might have failed:**
+1. Intermediate supervision on all 32 iterations may cause gradient issues
+2. Shared weights through 32 iterations may be unstable
+3. 4-layer transformer may not have enough capacity per iteration
+4. Smaller BS (256 vs 512) may not provide enough gradient stability
+
+**To properly test these hypotheses, need to:**
+1. Run baseline at BS=256 for fair comparison
+2. Try 32 iterations with final-only loss (no intermediate supervision)
+3. Try larger model + more iterations together
