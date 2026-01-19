@@ -1,6 +1,7 @@
 # Sudoku Transformer Experiments
 
-All experiments use 100k training steps on easiest difficulty puzzles (100k train, 1k test).
+Early experiments use 100k training steps on easiest difficulty puzzles (100k train, 1k test).
+Later experiments (curriculum, recurrence) use full 2.7M training set across all difficulties (2.5k test).
 
 ---
 
@@ -330,24 +331,24 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 
 ## Summary Table
 
-| Experiment | Acc | Solved | Key Finding |
-|------------|-----|--------|-------------|
-| Baseline | 92.8% | 643 | - |
-| No iteration | 64.3% | 0 | Iteration critical |
-| No intermediate | 87.0% | 428 | Intermediate helps |
-| No sudoku pos | 88.4% | 409 | Structure helps |
-| Project-add | 91.1% | 555 | No reliable gain (original 96% was fluke) |
-| Project-concat | 92.1% | 582 | No reliable gain |
-| Middle1 (2×2) | 84.2% | 162 | Depth > specialization |
-| Middle2 (4×1) | 72.7% | 0 | 1 layer insufficient |
-| Unrolled (16×4) | 90.1% | 581 | Weight sharing helps |
-| Sinusoidal pos | 50.1% | 0 | Learned embeddings >> sinusoidal for small spaces |
-| BS=256 + bf16 | 95.8% | 833 | Larger batch + more samples helps (peak 897) |
-| BS=512 + bf16 | 94.6% | 672 | Diminishing returns (peak 866) |
-| SAM + BS=256 | 98.1% | 930 | SAM finds flat minima (peak 958) |
-| SAM + BS=512 | 98.6% | 948 | SAM closes generalization gap (peak 959) |
-| **Mixed training** | **91-98%** | **775-960** | **Best!** 77.5% on hardest (was 12.5%) |
-| Hard-only | 57-91% | 570-913 | Hard doesn't subsume easy |
+| Experiment | Test Set | Solved | Key Finding |
+|------------|----------|--------|-------------|
+| Baseline (easy only) | 1k easy | 643 | - |
+| No iteration | 1k easy | 0 | Iteration critical |
+| No intermediate | 1k easy | 428 | Intermediate helps |
+| No sudoku pos | 1k easy | 409 | Structure helps |
+| Project-add | 1k easy | 555 | No reliable gain |
+| Project-concat | 1k easy | 582 | No reliable gain |
+| Middle1 (2×2) | 1k easy | 162 | Depth > specialization |
+| Middle2 (4×1) | 1k easy | 0 | 1 layer insufficient |
+| Unrolled (16×4) | 1k easy | 581 | Weight sharing helps |
+| Sinusoidal pos | 1k easy | 0 | Learned >> sinusoidal |
+| BS=256 + bf16 | 1k easy | 833 | Larger batch helps |
+| SAM + BS=512 | 1k easy | 948 | SAM closes gen gap |
+| Mixed training | 2.5k mixed | 1930 | Mixed > easy-only |
+| Curriculum (easy→hard) | 2.5k mixed | 1790 | Curriculum hurts! |
+| **Reverse curriculum** | 2.5k mixed | **1994** | Hard→easy wins |
+| **Recurrence (h_prev)** | 2.5k mixed | **2265** | **+13.6% over baseline** |
 
 ---
 
@@ -377,7 +378,9 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 
 12. **Hard doesn't subsume easy** - Training only on hard puzzles (difficulty >= 3.0) improves hard puzzle performance (+25 puzzles on 5.x+) but **hurts** easy puzzle performance (-334 puzzles on 2.x). This suggests easy and hard Sudoku require qualitatively different reasoning skills, not just "more" of the same skill. This parallels the distinction between reasoning and non-reasoning language models - they may be fundamentally different capabilities that don't transfer bidirectionally.
 
-13. **Reverse curriculum beats traditional curriculum** - See curriculum learning experiment below. Starting with hard puzzles (hard→easy) outperforms both mixed training and traditional curriculum (easy→hard). Traditional curriculum actually hurts performance.
+13. **Reverse curriculum beats traditional curriculum** - Starting with hard puzzles (hard→easy) outperforms both mixed training and traditional curriculum (easy→hard). Traditional curriculum actually hurts performance.
+
+14. **Hidden state recurrence is a major win** - Passing the full hidden state (128-dim) between iterations instead of just predictions (9-dim) gives +13.6% improvement (1994→2265). The hidden state acts as a "scratchpad" for working memory, allowing the model to accumulate reasoning across iterations. Simplest approach (just `+ h_prev`) beats complex gating mechanisms.
 
 ---
 
@@ -502,3 +505,69 @@ Traditional curriculum learning works well when easier tasks teach foundational 
 1. Run baseline at BS=256 for fair comparison
 2. Try 32 iterations with final-only loss (no intermediate supervision)
 3. Try larger model + more iterations together
+
+---
+
+## Experiment: Hidden State Recurrence
+
+**Files:** `exp_recur_add.py`, `exp_recur_concat.py`, `exp_recur_gated.py`, `exp_recur_mem.py`
+
+**Hypothesis:** The baseline only passes predictions (9-dim softmax) between iterations - the hidden state h is recomputed from scratch each time. What if we pass the full hidden state (128-dim) forward, giving the model a "scratchpad" for working memory?
+
+**Background:** Analysis of failures (`analyze_failures.py`) showed that on failed puzzles:
+- Model peaks at iteration 4, then gets *worse* (oscillates without converging)
+- 99.4% of failures still changing at final iteration (not converged)
+- Successful puzzles show steady improvement across iterations
+
+This suggests the model lacks persistent memory to accumulate reasoning across iterations.
+
+**Baseline architecture:**
+```python
+preds = 0
+for _ in range(16):
+    h = transformer(input_proj(concat(x, preds)))  # h computed fresh
+    preds = softmax(output_head(h))  # only 9-dim preds carries forward
+```
+
+**Four recurrence variants tested:**
+
+| Variant | Change | Extra Params |
+|---------|--------|--------------|
+| **recur_add** | `h = ... + h_prev` | None |
+| **recur_concat** | `input_proj(concat(x, preds, h_prev))` | +16k (input proj larger) |
+| **recur_gated** | `h = gate * h_prev + (1-gate) * h_new` | +33k (gate projection) |
+| **recur_mem** | Separate 64-dim memory bank, accumulated | +16k (mem projections) |
+
+**Results:**
+
+| Model | Total | 0.0 | 1.x | 2.x | 3.x | 4.x+ |
+|-------|-------|-----|-----|-----|-----|------|
+| Baseline | 1994 | 498 | 450 | 395 | 338 | 305 |
+| **recur_add** | **2265** | 498 | 483 | 461 | 424 | **399** |
+| recur_concat | 2206 | 500 | 483 | 447 | 403 | 373 |
+| recur_gated | 2141 | 499 | 464 | 441 | 389 | 348 |
+| recur_mem | 2254 | 500 | 487 | 462 | 423 | 382 |
+
+**Key findings:**
+
+1. **Simplest approach wins**: Just adding `h_prev` (no extra params!) gives best results
+2. **Huge improvement on hard puzzles**: 305 → 399 (+94 puzzles, **+31%**)
+3. **Overall improvement**: 1994 → 2265 (+271 puzzles, **+13.6%**)
+4. **Gated recurrence underperforms**: GRU-style gating may be too complex, learning to gate away useful information
+5. **All recurrence methods beat baseline**: Even the worst (gated, 2141) significantly outperforms baseline (1994)
+
+**Why recurrence helps:**
+
+The hidden state h (128-dim per cell) can encode richer information than predictions alone (9-dim per cell):
+- "This cell is entangled with cells 3 and 47"
+- "I tried value 5 here and it caused problems"
+- "I'm waiting on more info before committing"
+
+With recurrence, this working memory persists across iterations instead of being discarded. The model can accumulate reasoning rather than starting fresh each iteration.
+
+**Why simple addition beats complex methods:**
+
+- No extra parameters to learn = faster convergence
+- Transformer can learn to extract what it needs from the added signal
+- Acts like a residual connection across iterations
+- Complex gating may learn to suppress useful information
