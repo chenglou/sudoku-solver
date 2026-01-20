@@ -349,6 +349,8 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | Curriculum (easy→hard) | 2.5k mixed | 1790 | Curriculum hurts! |
 | **Reverse curriculum** | 2.5k mixed | **1994** | Hard→easy wins |
 | **Recurrence (h_prev)** | 2.5k mixed | **2265** | **+13.6% over baseline** |
+| Recurrence no preds | 2.5k mixed | 2238 | Preds still helps |
+| Recurrence (sudoku-extreme) | 423k extreme | 32.9% | vs TRM 87.4% |
 
 ---
 
@@ -381,6 +383,10 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 13. **Reverse curriculum beats traditional curriculum** - Starting with hard puzzles (hard→easy) outperforms both mixed training and traditional curriculum (easy→hard). Traditional curriculum actually hurts performance.
 
 14. **Hidden state recurrence is a major win** - Passing the full hidden state (128-dim) between iterations instead of just predictions (9-dim) gives +13.6% improvement (1994→2265). The hidden state acts as a "scratchpad" for working memory, allowing the model to accumulate reasoning across iterations. Simplest approach (just `+ h_prev`) beats complex gating mechanisms.
+
+15. **Keep explicit predictions with recurrence** - Even though h_prev theoretically contains all info needed to derive predictions, removing explicit preds from input hurts performance (-27 to -62 puzzles). The 9-dim prediction acts as a useful compressed summary alongside the 128-dim hidden state.
+
+16. **Attention may be overkill for fixed-structure problems** - On sudoku-extreme benchmark, TRM (MLP-Mixer) achieves 87.4% while our transformer achieves 32.9%. Sudoku has fixed constraint structure (same 20 neighbors per cell always). Attention's dynamic "which tokens to attend to" flexibility is wasted when the answer is constant. MLP-Mixer's fixed mixing pattern is a better inductive bias.
 
 ---
 
@@ -571,3 +577,73 @@ With recurrence, this working memory persists across iterations instead of being
 - Transformer can learn to extract what it needs from the added signal
 - Acts like a residual connection across iterations
 - Complex gating may learn to suppress useful information
+
+---
+
+## Ablation: Recurrence Without Predictions
+
+**Files:** `exp_recur_add_nopred.py`, `exp_recur_concat_nopred.py`, `exp_recur_mem_nopred.py`
+
+**Hypothesis:** If h_prev contains all the information (including what led to predictions), is the explicit `preds` input redundant? Since `preds = softmax(output_head(h))`, passing h_prev should be strictly more informative.
+
+**Change:** Remove preds from input, rely solely on h_prev for iteration state:
+```python
+# Before: concat(x, preds) + h_prev
+# After: just x + h_prev (or concat(x, h_prev) for concat variant)
+```
+
+**Results:**
+
+| Model | With Preds | No Preds | Delta |
+|-------|------------|----------|-------|
+| add | **2265** | 2238 | -27 |
+| concat | 2206 | 2204 | -2 |
+| mem | **2254** | 2192 | -62 |
+
+**Finding:** Removing preds **hurts** across the board, especially for the memory variant (-62 puzzles).
+
+**Why explicit preds helps despite being "redundant":**
+1. **Compressed summary**: 9-dim preds is a clean "what I currently think" signal vs 128-dim h which contains everything
+2. **Supervision signal path**: Loss flows through preds → model may learn to structure h around producing good preds
+3. **Easier to learn**: Extracting current prediction from h requires learning; having it explicit is free
+4. **Different roles**: h_prev = "how I got here", preds = "where I am now" - both useful
+
+**Conclusion:** Keep both preds and h_prev for best results.
+
+---
+
+## Benchmark: Sudoku-Extreme
+
+**File:** `eval_extreme.py`
+
+**Dataset:** [sapientinc/sudoku-extreme](https://huggingface.co/datasets/sapientinc/sudoku-extreme) - 423k test puzzles rated by backtrack count (higher = harder).
+
+**Comparison with TRM** (Tiny Recursive Model, 87.4% on this benchmark):
+
+| Rating | Baseline | recur_add | TRM |
+|--------|----------|-----------|-----|
+| 0 (trivial) | 98.3% | 99.8% | - |
+| 1 | 78.7% | 93.4% | - |
+| 2 | 68.0% | 84.2% | - |
+| 3-5 | 27.9% | 40.1% | - |
+| 6-10 | 3.3% | 12.1% | - |
+| 11-20 | 1.8% | 11.3% | - |
+| 21-50 | 1.4% | 10.4% | - |
+| 51+ | 0.8% | 6.6% | - |
+| **Total** | 24.4% | **32.9%** | **87.4%** |
+
+**Analysis:**
+
+Recurrence helps (+8.5pp overall), but we're still far from TRM. Key differences:
+
+1. **Architecture**: TRM uses MLP-Mixer (attention-free), we use transformer
+2. **Model size**: TRM 5M params, us ~800k params
+3. **Training data**: TRM trains on 1K examples, we train on 2.7M
+
+TRM achieves 87% with 5M params on 1K training examples. We achieve 33% with 800k params on 2.7M examples. Their inductive bias is fundamentally better for sudoku.
+
+**Why MLP-Mixer may be better for sudoku:**
+
+Sudoku has **fixed constraint structure** - cell 0 always interacts with the same 20 neighbors (same row, col, box). Attention's ability to dynamically choose which tokens to attend to is overkill - a fixed mixing pattern suffices.
+
+MLP-Mixer learns a fixed [81, 81] mixing matrix, which can hardcode "cell 0 attends to cells 1-8, 9, 18, 27..." Attention wastes capacity learning what should be constant.
