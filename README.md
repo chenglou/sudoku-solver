@@ -1,11 +1,10 @@
-# Sudoku Solver Transformer
+# Neural Sudoku Solver
 
-An iterative transformer that solves sudoku puzzles through recurrent refinement.
+Experiments on various architectures to solve sudoku
 
-## Quick Start
+## Setup
 
-```bash
-# Setup
+```sh
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
