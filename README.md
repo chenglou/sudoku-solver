@@ -33,6 +33,17 @@ python eval_extreme.py
 
 ## Results
 
-On our test set (2500 puzzles): **2265/2500 (90.6%)**
+### Kaggle 3M Dataset (500 test puzzles per difficulty)
 
-On sudoku-extreme benchmark: **32.9%** (vs TRM's 87.4%)
+| Difficulty | Solved | Accuracy |
+|------------|--------|----------|
+| 0.x (easy) | 498/500 | 99.6% |
+| 1.x | 483/500 | 96.6% |
+| 2.x | 461/500 | 92.2% |
+| 3.x | 424/500 | 84.8% |
+| 4.x+ (hard) | 399/500 | 79.8% |
+| **Total** | **2265/2500** | **90.6%** |
+
+### Sudoku-Extreme Benchmark
+
+**32.9%** (vs TRM's 87.4% with MLP-Mixer)
