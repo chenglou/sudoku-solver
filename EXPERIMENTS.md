@@ -350,6 +350,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | **Reverse curriculum** | 2.5k mixed | **1994** | Hard→easy wins |
 | **Recurrence (h_prev)** | 2.5k mixed | **2265** | **+13.6% over baseline** |
 | Recurrence no preds | 2.5k mixed | 2238 | Preds still helps |
+| No x after init | 2.5k mixed | 2248 | Removing x costs only -0.7% |
 | Recurrence (sudoku-extreme) | 423k extreme | 32.9% | vs TRM 87.4% |
 
 ---
@@ -387,6 +388,8 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 15. **Keep explicit predictions with recurrence** - Even though h_prev theoretically contains all info needed to derive predictions, removing explicit preds from input hurts performance (-27 to -62 puzzles). The 9-dim prediction acts as a useful compressed summary alongside the 128-dim hidden state.
 
 16. **Attention may be overkill for fixed-structure problems** - On sudoku-extreme benchmark, TRM (MLP-Mixer) achieves 87.4% while our transformer achieves 32.9%. Sudoku has fixed constraint structure (same 20 neighbors per cell always). Attention's dynamic "which tokens to attend to" flexibility is wasted when the answer is constant. MLP-Mixer's fixed mixing pattern is a better inductive bias.
+
+17. **Puzzle input is needed only once** - Removing the puzzle input x after the first iteration (TRM-style) costs only -0.7% (2248 vs 2265). The hidden state h_prev captures all necessary puzzle information after initial encoding. This simplifies the architecture and aligns with TRM's design.
 
 ---
 
@@ -609,6 +612,34 @@ With recurrence, this working memory persists across iterations instead of being
 4. **Different roles**: h_prev = "how I got here", preds = "where I am now" - both useful
 
 **Conclusion:** Keep both preds and h_prev for best results.
+
+---
+
+## Experiment: No X After Init (TRM-style Input)
+
+**File:** `exp_no_x_after_init.py`
+
+**Hypothesis:** TRM encodes the puzzle x once at initialization and never re-feeds it. Can we do the same? This tests whether the model needs fresh x input at every iteration or if the hidden state h_prev captures all necessary puzzle info.
+
+**Change:**
+```python
+# Before: h = encoder(concat(x, preds)) + h_prev  (x passed every iteration)
+# After: h = h_prev + pred_proj(preds) + pos_embed  (x encoded once at init)
+
+# Encode x ONCE at the start
+h_prev = self.initial_encoder(x)
+
+for _ in range(n_iterations):
+    # NO x here - only h_prev and preds
+    h = h_prev + self.pred_proj(preds) + pos_embed
+    h = self.transformer(h)
+    h_prev = h
+    preds = F.softmax(output_head(h), dim=-1)
+```
+
+**Results:** 2248/2500 (89.9%) vs baseline 2265/2500 (90.6%) = -17 puzzles (-0.7%)
+
+**Finding:** Removing x after initialization has essentially no cost. The model encodes all necessary puzzle information in the first iteration, and subsequent iterations can rely on h_prev alone. This is consistent with TRM's design and suggests the hidden state is a sufficient representation of the puzzle state.
 
 ---
 
