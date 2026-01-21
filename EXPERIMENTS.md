@@ -351,6 +351,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | **Recurrence (h_prev)** | 2.5k mixed | **2265** | **+13.6% over baseline** |
 | Recurrence no preds | 2.5k mixed | 2238 | Preds still helps |
 | No x after init | 2.5k mixed | 2248 | Removing x costs only -0.7% |
+| Norm pred (TRM-style) | 2.5k mixed | 2257 | RMS norm works, but no gain |
 | Recurrence (sudoku-extreme) | 423k extreme | 32.9% | vs TRM 87.4% |
 
 ---
@@ -642,6 +643,42 @@ for _ in range(n_iterations):
 **Results:** 2248/2500 (89.9%) vs baseline 2265/2500 (90.6%) = -17 puzzles (-0.7%)
 
 **Finding:** Removing x after initialization has essentially no cost. The model encodes all necessary puzzle information in the first iteration, and subsequent iterations can rely on h_prev alone. This is consistent with TRM's design and suggests the hidden state is a sufficient representation of the puzzle state.
+
+---
+
+## Experiment: Normalized Prediction Residuals (TRM-style)
+
+**File:** `exp_norm_pred.py`
+
+**Hypothesis:** TRM updates its prediction state with residual connections + RMS normalization. Our earlier `exp_separate_h_pred` failed because logits accumulated unboundedly. Can we make predictions update separately with proper normalization?
+
+**Change:**
+```python
+# h updates independently (no preds input)
+h = h_prev + pos_embed
+h = self.transformer(h)
+h_prev = h
+
+# Separate prediction update with residual + RMS norm
+pred_input = torch.cat([h, pred_state], dim=-1)
+delta = self.pred_update(pred_input)  # MLP: (d_model+9) -> 512 -> 9
+pred_state = self.pred_norm(pred_state + delta)  # RMS normalization
+
+# Final output combines both
+logits = self.output_head(h) + pred_state
+```
+
+**Results:** 2257/2500 (90.3%) vs baseline 2265/2500 (90.6%) = -8 puzzles (-0.3%)
+
+| Difficulty | norm_pred | recur_add (baseline) |
+|------------|-----------|----------------------|
+| 0.x | 500/500 | 498/500 |
+| 1.x | 483/500 | 483/500 |
+| 2.x | 461/500 | 461/500 |
+| 3.x | 420/500 | 424/500 |
+| 4.x+ | 393/500 | 399/500 |
+
+**Finding:** RMS normalization successfully prevents the explosion that killed `exp_separate_h_pred`. However, the added complexity (~70K extra params for pred_update MLP) doesn't improve results. Simple `h_prev` addition remains the best approach - more complex prediction update mechanisms don't help.
 
 ---
 
