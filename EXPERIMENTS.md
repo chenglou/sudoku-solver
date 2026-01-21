@@ -352,7 +352,8 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | Recurrence no preds | 2.5k mixed | 2238 | Preds still helps |
 | No x after init | 2.5k mixed | 2248 | Removing x costs only -0.7% |
 | Norm pred (TRM-style) | 2.5k mixed | 2257 | RMS norm works, but no gain |
-| Recurrence (sudoku-extreme) | 423k extreme | 32.9% | vs TRM 87.4% |
+| Eval on sudoku-extreme | 423k extreme | 32.9% | vs TRM 87.4% |
+| Train on sudoku-extreme | 22k extreme | 63.4% | Domain match +32pp |
 
 ---
 
@@ -393,6 +394,8 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 17. **Puzzle input is needed only once** - Removing the puzzle input x after the first iteration (TRM-style) costs only -0.7% (2248 vs 2265). The hidden state h_prev captures all necessary puzzle information after initial encoding. This simplifies the architecture and aligns with TRM's design.
 
 18. **Training stabilizes around 50-60K steps** - Analysis of training curves shows: rapid gains 0-20K (0%→82%), moderate gains 20K-50K (82%→87%), then plateau with variance 50K-100K (bounces 88-91%). The last 40K steps add noise without consistent improvement. For quick experiments, 50-70K steps is sufficient to evaluate an approach.
+
+19. **Training data domain matters more than quantity** - Training on 400K sudoku-extreme puzzles achieves 63.4% on sudoku-extreme test, vs 31.7% from 2.7M Kaggle puzzles (+32pp with 7x less data). However, the Kaggle-trained model still wins on Kaggle test (89.9% vs 81.3%). Models specialize to their training domain rather than learning universal sudoku solving.
 
 ---
 
@@ -717,3 +720,44 @@ TRM achieves 87% with 5M params on 1K training examples. We achieve 33% with 800
 Sudoku has **fixed constraint structure** - cell 0 always interacts with the same 20 neighbors (same row, col, box). Attention's ability to dynamically choose which tokens to attend to is overkill - a fixed mixing pattern suffices.
 
 MLP-Mixer learns a fixed [81, 81] mixing matrix, which can hardcode "cell 0 attends to cells 1-8, 9, 18, 27..." Attention wastes capacity learning what should be constant.
+
+---
+
+## Experiment: Training on Sudoku-Extreme
+
+**File:** `exp_extreme_curriculum.py`
+
+**Hypothesis:** Our models trained on Kaggle data only achieve 31.7% on sudoku-extreme. Does training directly on sudoku-extreme close the gap to TRM?
+
+**Setup:**
+- 400K training puzzles from sudoku-extreme (test split, before we knew train split existed)
+- Same architecture as `no_x_after_init` (encode x once)
+- Reverse curriculum based on rating: Phase 1 (rating 21+) → Phase 2 (6+) → Phase 3 (1+) → Phase 4 (all)
+- 100K steps, SAM + BS=512
+
+**Results:**
+
+| Trained on | Kaggle test (2.5K) | sudoku-extreme test (22K) |
+|------------|-------------------|---------------------------|
+| Kaggle 2.7M | **89.9%** | 31.7% |
+| sudoku-extreme 400K | 81.3% | **63.4%** |
+| TRM (sudoku-hard 1K) | - | **87.4%** |
+
+**By difficulty on sudoku-extreme:**
+
+| Rating | Kaggle-trained | Extreme-trained |
+|--------|----------------|-----------------|
+| 0 (trivial) | 99.8% | 98.7% |
+| 1-2 | 88.9% | 79.8% |
+| 3-10 | 62.0% | 51.5% |
+| 11-50 | 21.5% | 53.4% |
+| 51+ | 6.6% | 62.8% |
+
+**Key findings:**
+
+1. **Domain match matters hugely**: +32pp on sudoku-extreme (31.7% → 63.4%) with 7x less data
+2. **Not universally better data**: -8.6pp on Kaggle (89.9% → 81.3%), models specialize to their domain
+3. **Still far from TRM**: 63.4% vs 87.4% despite training on same domain. Architecture gap remains.
+4. **Hard puzzles benefit most**: Rating 51+ jumps from 6.6% to 62.8% (+56pp!)
+
+**Stabilization:** Similar to Kaggle experiments - rapid gains until 50K, plateau with variance 50-100K. 70K steps sufficient.
