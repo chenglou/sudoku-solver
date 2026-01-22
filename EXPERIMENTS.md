@@ -354,6 +354,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | Norm pred (TRM-style) | 2.5k mixed | 2257 | RMS norm works, but no gain |
 | Eval on sudoku-extreme | 423k extreme | 32.9% | vs TRM 87.4% |
 | Train on sudoku-extreme | 22k extreme | 63.4% | Domain match +32pp |
+| **MLP-Mixer** | 25k extreme | **71.9%** | Same as Transformer |
 
 ---
 
@@ -389,7 +390,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 
 15. **Keep explicit predictions with recurrence** - Even though h_prev theoretically contains all info needed to derive predictions, removing explicit preds from input hurts performance (-27 to -62 puzzles). The 9-dim prediction acts as a useful compressed summary alongside the 128-dim hidden state.
 
-16. **Attention may be overkill for fixed-structure problems** - On sudoku-extreme benchmark, TRM (MLP-Mixer) achieves 87.4% while our transformer achieves 32.9%. Sudoku has fixed constraint structure (same 20 neighbors per cell always). Attention's dynamic "which tokens to attend to" flexibility is wasted when the answer is constant. MLP-Mixer's fixed mixing pattern is a better inductive bias.
+16. **MLP-Mixer ≈ Transformer for Sudoku** - Swapping Transformer attention for MLP-Mixer yields nearly identical results (71.9% vs 71.4%). TRM's 87.4% advantage over our 71% is NOT due to architecture choice. Despite Sudoku having fixed constraint structure where attention's dynamic routing seems wasteful, the two architectures perform equivalently at our scale (~800K params). TRM's edge likely comes from model size (5M params), data augmentation, or training tricks.
 
 17. **Puzzle input is needed only once** - Removing the puzzle input x after the first iteration (TRM-style) costs only -0.7% (2248 vs 2265). The hidden state h_prev captures all necessary puzzle information after initial encoding. This simplifies the architecture and aligns with TRM's design.
 
@@ -803,3 +804,51 @@ MLP-Mixer learns a fixed [81, 81] mixing matrix, which can hardcode "cell 0 atte
 4. **Hard puzzles benefit most**: Rating 51+ jumps from 57.5% to 71.3% (+14pp)
 
 **This is now the new baseline** for sudoku-extreme experiments: 2.7M data, 70K steps, no_x_after_init architecture
+
+---
+
+## Experiment: MLP-Mixer (Architecture Swap)
+
+**File:** `exp_mlp_mixer.py`
+
+**Hypothesis:** TRM uses MLP-Mixer instead of Transformer attention. Is their 87.4% vs our 71.4% due to the architecture difference?
+
+**Change:** Replace TransformerEncoder with MLP-Mixer layers:
+```python
+# Before: self-attention + FFN
+h = self.transformer(h)
+
+# After: token mixing MLP + channel mixing MLP
+class MixerLayer(nn.Module):
+    def forward(self, x):
+        # Token mixing: MLP across 81 positions
+        y = self.norm1(x).transpose(1, 2)
+        y = self.token_mix(y).transpose(1, 2)  # 81 -> 512 -> 81
+        x = x + y
+        # Channel mixing: MLP across features (same as FFN)
+        x = x + self.channel_mix(self.norm2(x))
+        return x
+```
+
+Everything else identical: same looping, h_prev recurrence, pos embeddings, training setup.
+
+**Parameters:** 870K (MLP-Mixer) vs 800K (Transformer) - similar
+
+**Results:**
+
+| Model | Total | Rating 0 | 1-2 | 3-10 | 11-50 | 51+ |
+|-------|-------|----------|-----|------|-------|-----|
+| **MLP-Mixer** | **71.9%** | 99.1% | 86.6% | 53.3% | 56.9% | 63.4% |
+| Transformer | 71.4% | 98.7% | 83.1% | 60.0% | 65.7% | 71.3% |
+| TRM | 87.4% | - | - | - | - | - |
+
+**Finding:** MLP-Mixer achieves **71.9%** vs Transformer's **71.4%** - essentially identical (+0.5pp).
+
+Interesting pattern: MLP-Mixer is *worse* on hard puzzles (51+: 63.4% vs 71.3%) but *better* on easy (1-2: 86.6% vs 83.1%). The architectures trade off differently across difficulties but converge to the same overall accuracy.
+
+**Conclusion:** Swapping Transformer for MLP-Mixer does NOT explain TRM's advantage. The 16pp gap must come from:
+1. **Model size**: TRM 5M params vs our 870K (6x larger)
+2. **Data augmentation**: TRM uses 1000 digit relabelings per puzzle
+3. **Training tricks**: EMA, different supervision schedule (H_cycles/L_cycles)
+
+Architecture alone is not the bottleneck.
