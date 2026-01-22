@@ -761,3 +761,45 @@ MLP-Mixer learns a fixed [81, 81] mixing matrix, which can hardcode "cell 0 atte
 4. **Hard puzzles benefit most**: Rating 51+ jumps from 6.6% to 62.8% (+56pp!)
 
 **Stabilization:** Similar to Kaggle experiments - rapid gains until 50K, plateau with variance 50-100K. 70K steps sufficient.
+
+---
+
+## New Baseline: 2.7M Sudoku-Extreme
+
+**File:** `exp_extreme_baseline.py`
+
+**Hypothesis:** Our previous sudoku-extreme experiment used only 400K puzzles. What if we match the Kaggle data quantity (2.7M)?
+
+**Setup:**
+- 2.7M training puzzles from sudoku-extreme train split (matching Kaggle quantity)
+- Same architecture as `no_x_after_init` (encode x once)
+- Reverse curriculum based on rating: Phase 1 (rating 21+) → Phase 2 (6+) → Phase 3 (1+) → Phase 4 (all)
+- 70K steps (not 100K - training stabilizes by then), SAM + BS=512
+
+**Results:**
+
+| Trained on | Data | Kaggle test (2.5K) | sudoku-extreme test |
+|------------|------|-------------------|---------------------|
+| Kaggle | 2.7M | **89.9%** | 31.7% |
+| sudoku-extreme | 400K | 81.3% | 63.4% |
+| **sudoku-extreme** | **2.7M** | 83.3% | **71.4%** |
+| TRM (reference) | 1K | - | 87.4% |
+
+**By difficulty on sudoku-extreme test:**
+
+| Rating | 400K trained | 2.7M trained |
+|--------|--------------|--------------|
+| 0 (trivial) | 4812/5000 (96.2%) | 4935/5000 (98.7%) |
+| 1-2 | 3888/5000 (77.8%) | 4154/5000 (83.1%) |
+| 3-10 | 2513/5000 (50.3%) | 2999/5000 (60.0%) |
+| 11-50 | 2617/5000 (52.3%) | 3283/5000 (65.7%) |
+| 51+ | 2874/5000 (57.5%) | 3563/5000 (71.3%) |
+
+**Key findings:**
+
+1. **More data helps**: +8pp on sudoku-extreme (63.4% → 71.4%) by increasing from 400K to 2.7M
+2. **Cross-domain also improves**: +2pp on Kaggle (81.3% → 83.3%) despite never seeing Kaggle puzzles
+3. **Still far from TRM**: 71.4% vs 87.4% - the architecture gap (Transformer vs MLP-Mixer) remains the bottleneck
+4. **Hard puzzles benefit most**: Rating 51+ jumps from 57.5% to 71.3% (+14pp)
+
+**This is now the new baseline** for sudoku-extreme experiments: 2.7M data, 70K steps, no_x_after_init architecture
