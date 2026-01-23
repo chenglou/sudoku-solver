@@ -355,6 +355,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | Eval on sudoku-extreme | 423k extreme | 32.9% | vs TRM 87.4% |
 | Train on sudoku-extreme | 22k extreme | 63.4% | Domain match +32pp |
 | **MLP-Mixer** | 25k extreme | **71.9%** | Same as Transformer |
+| Scale DOWN (100K params) | 25k extreme | 8.3% | Too small, fails |
 
 ---
 
@@ -852,3 +853,35 @@ Interesting pattern: MLP-Mixer is *worse* on hard puzzles (51+: 63.4% vs 71.3%) 
 3. **Training tricks**: EMA, different supervision schedule (H_cycles/L_cycles)
 
 Architecture alone is not the bottleneck.
+
+---
+
+## Experiment: Scale DOWN
+
+**File:** `exp_scale_down.py`
+
+**Hypothesis:** How small can we go? Testing if a smaller model can still solve Sudoku.
+
+**Change:**
+- d_model: 128 → 64
+- n_layers: 4 → 2
+- n_heads: 4 → 2
+- d_ff: 512 → 256
+- ~100K params (vs baseline ~800K)
+
+**Results:**
+
+| Rating | Solved |
+|--------|--------|
+| 0 (easy) | 32.2% |
+| 1-2 | 1.4% |
+| 3-10 | 1.8% |
+| 11-50 | 4.2% |
+| 51+ | 2.1% |
+| **Total** | **8.3%** |
+
+**Finding:** Catastrophic failure. The small model can barely solve easy puzzles (32%) and essentially nothing harder.
+
+This confirms Key Insight #2: depth per iteration matters. With only 2 layers, the model cannot perform the multi-step constraint reasoning needed within each iteration. Combined with smaller d_model, the model lacks both the depth and capacity for Sudoku.
+
+**Minimum viable size** appears to be somewhere between 100K and 800K params.
