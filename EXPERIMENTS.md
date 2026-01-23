@@ -356,6 +356,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | Train on sudoku-extreme | 22k extreme | 63.4% | Domain match +32pp |
 | **MLP-Mixer** | 25k extreme | **71.9%** | Same as Transformer |
 | Scale DOWN (100K params) | 25k extreme | 8.3% | Too small, fails |
+| Scale UP (5M params) | 25k extreme | 69.7% | More params ≠ better |
 
 ---
 
@@ -398,6 +399,8 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 18. **Training stabilizes around 50-60K steps** - Analysis of training curves shows: rapid gains 0-20K (0%→82%), moderate gains 20K-50K (82%→87%), then plateau with variance 50K-100K (bounces 88-91%). The last 40K steps add noise without consistent improvement. For quick experiments, 50-70K steps is sufficient to evaluate an approach.
 
 19. **Training data domain matters more than quantity** - Training on 400K sudoku-extreme puzzles achieves 63.4% on sudoku-extreme test, vs 31.7% from 2.7M Kaggle puzzles (+32pp with 7x less data). However, the Kaggle-trained model still wins on Kaggle test (89.9% vs 81.3%). Models specialize to their training domain rather than learning universal sudoku solving.
+
+20. **Model size is NOT the bottleneck** - Scaling from 800K to 5M params (matching TRM) actually made results worse (69.7% vs 71.4%). Combined with the MLP-Mixer result (71.9% ≈ 71.4%), we've ruled out both architecture type and model size as explanations for TRM's 87.4% advantage. The gap must come from TRM's training methodology: data augmentation (1000 digit relabelings), nested iteration loops (H_cycles/L_cycles), or EMA.
 
 ---
 
@@ -885,3 +888,43 @@ Architecture alone is not the bottleneck.
 This confirms Key Insight #2: depth per iteration matters. With only 2 layers, the model cannot perform the multi-step constraint reasoning needed within each iteration. Combined with smaller d_model, the model lacks both the depth and capacity for Sudoku.
 
 **Minimum viable size** appears to be somewhere between 100K and 800K params.
+
+---
+
+## Experiment: Scale UP
+
+**File:** `exp_scale_up.py`
+
+**Hypothesis:** TRM has 5M params vs our 800K. Is model size the bottleneck? Let's scale up to match TRM.
+
+**Change:**
+- d_model: 128 → 256
+- n_layers: 4 → 8
+- n_heads: 4 → 8
+- d_ff: 512 → 1024
+- ~5M params (matching TRM)
+- Used gradient accumulation (micro_batch=128 × 4 = effective BS=512) due to GPU memory
+
+**Results:**
+
+| Rating | Scale UP (5M) | Baseline (800K) |
+|--------|---------------|-----------------|
+| 0 (easy) | 98.2% | 98.7% |
+| 1-2 | 80.8% | 83.1% |
+| 3-10 | 50.8% | 60.0% |
+| 11-50 | 55.5% | 65.7% |
+| 51+ | 63.0% | 71.3% |
+| **Total** | **69.7%** | **71.4%** |
+
+**Reference:** TRM (5M params): 87.4%
+
+**Finding:** Scaling up 6x to 5M params made results **WORSE** (-1.7pp). Despite matching TRM's parameter count, we don't match its performance. Key insights:
+
+1. **Model size is NOT the bottleneck** - More params doesn't help, may even hurt
+2. **Our architecture has trouble utilizing capacity** - The larger model trains more efficiently early (51% vs 12% at step 5K) but converges to worse results
+3. **TRM's advantage must be elsewhere**:
+   - Data augmentation (1000 digit relabelings per puzzle)
+   - Training methodology (H_cycles/L_cycles nested loops, EMA)
+   - Possibly better inductive biases in their specific MLP-Mixer design
+
+**The gap with TRM (69.7% vs 87.4%) is NOT due to model size** - both have ~5M params. Combined with the MLP-Mixer experiment (71.9% ≈ 71.4%), we've ruled out both architecture type and model size as the bottleneck. The remaining differences are in training methodology.
