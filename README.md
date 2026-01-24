@@ -37,6 +37,7 @@ The training code can run on any GPU and provider, agnostically. I'm personally 
 - `exp_extreme_baseline.py` - Previous baseline: 800K params, BS=512 (71.4% on extreme)
 - `exp_scale_wide.py` - Width scaling experiment: 3.2M params, d=512 (74.8% on extreme)
 - `exp_scale_up_big_gpu.py` - Depth+width scaling: 6.3M params, d=256, L=8 (73.5% on extreme)
+- `checkpoint_utils.py` - Checkpoint save/resume utilities (Modal preemption-safe)
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
 - `EXPERIMENTS.md` - Full experiment log and results
 - `modal_run.py` - (Optional) Modal wrapper for running experiments on Modal GPUs
