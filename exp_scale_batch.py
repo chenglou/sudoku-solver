@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from datasets import load_dataset
 import random
 import os
-import glob as glob_module
+from checkpoint_utils import find_latest_checkpoint, load_checkpoint, restore_optimizer, save_checkpoint
 
 torch.set_float32_matmul_precision('high')
 
@@ -152,19 +152,7 @@ def get_targets(puzzle_str, solution_str):
     return torch.tensor(holes), torch.tensor(targets)
 
 
-def find_latest_checkpoint(output_dir):
-    pattern = os.path.join(output_dir, "scale_batch_checkpoint_step*.pt")
-    checkpoints = glob_module.glob(pattern)
-    if not checkpoints:
-        return None, 0
-
-    def get_step(path):
-        fname = os.path.basename(path)
-        step_str = fname.replace("scale_batch_checkpoint_step", "").replace(".pt", "")
-        return int(step_str)
-
-    latest = max(checkpoints, key=get_step)
-    return latest, get_step(latest)
+CHECKPOINT_PREFIX = "scale_batch_checkpoint_step"
 
 
 def train(output_dir="."):
@@ -228,18 +216,11 @@ def train(output_dir="."):
     print(f"\nModel parameters: {param_count:,} (baseline: ~800K)")
 
     # Check for checkpoint BEFORE torch.compile()
-    checkpoint_path, start_step = find_latest_checkpoint(output_dir)
+    checkpoint_path, start_step = find_latest_checkpoint(output_dir, CHECKPOINT_PREFIX)
     checkpoint_data = None
     if checkpoint_path:
         print(f"Found checkpoint: {checkpoint_path}")
-        checkpoint_data = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
-        saved_config = checkpoint_data.get('config', {})
-        if saved_config:
-            for key, value in CONFIG.items():
-                saved_value = saved_config.get(key)
-                if saved_value != value:
-                    raise ValueError(f"Config mismatch: {key}={saved_value} (checkpoint) vs {value} (current)")
-        model.load_state_dict(checkpoint_data['model_state_dict'])
+        checkpoint_data = load_checkpoint(checkpoint_path, model, CONFIG)
         start_step = checkpoint_data['step']
         print(f"Loaded model weights from step {start_step}")
 
@@ -248,11 +229,7 @@ def train(output_dir="."):
     optimizer = SAM(model.parameters(), torch.optim.AdamW, rho=sam_rho, lr=lr, betas=(0.9, 0.95))
 
     if checkpoint_data:
-        optimizer.load_state_dict(checkpoint_data['optimizer_state_dict'])
-        for state in optimizer.base_optimizer.state.values():
-            for k, v in state.items():
-                if isinstance(v, torch.Tensor):
-                    state[k] = v.to(device)
+        restore_optimizer(optimizer, checkpoint_data, device)
         print(f"Resumed from step {start_step}")
 
     print(f"\nExperiment: Scale BATCH SIZE only (baseline arch)")
@@ -338,16 +315,9 @@ def train(output_dir="."):
         results['_total'] = {'solved': total_solved, 'total': total_puzzles}
         return results
 
-    def save_checkpoint(step):
-        state_dict = {k.replace('_orig_mod.', ''): v for k, v in model.state_dict().items()}
-        checkpoint = {
-            'step': step,
-            'model_state_dict': state_dict,
-            'optimizer_state_dict': optimizer.state_dict(),
-            'config': CONFIG,
-        }
-        path = os.path.join(output_dir, f"scale_batch_checkpoint_step{step}.pt")
-        torch.save(checkpoint, path)
+    def do_save_checkpoint(step):
+        path = os.path.join(output_dir, f"{CHECKPOINT_PREFIX}{step}.pt")
+        save_checkpoint(path, step, model, optimizer, CONFIG)
         print(f"Checkpoint saved: {path}")
 
     current_phase_name = None
@@ -391,7 +361,7 @@ def train(output_dir="."):
                 log(f"Step {step:5d} | Loss: {loss2.item():.4f} Acc: {train_acc:.2%} | " +
                     " | ".join([f"{name}: {r['solved']}/{r['total']}" for name, r in results.items()]) +
                     f" | Total: {total_r['solved']}/{total_r['total']} ({100*total_r['solved']/total_r['total']:.1f}%)")
-                save_checkpoint(step)
+                do_save_checkpoint(step)
             else:
                 log(f"Step {step:5d} | Loss: {loss2.item():.4f} Acc: {train_acc:.2%}")
 
