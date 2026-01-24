@@ -12,6 +12,8 @@ import numpy as np
 import multiprocessing as mp
 import random
 import os
+import glob
+import re
 
 torch.set_float32_matmul_precision('high')
 
@@ -68,6 +70,53 @@ total_steps = 70000
 batch_size = 512   # TRUE batch size, no gradient accumulation
 sam_rho = 0.05
 train_size = 2700000
+
+# Config dict for checkpoint verification (prevents loading wrong checkpoint)
+CONFIG = {
+    'experiment': 'scale_up_big_gpu',
+    'd_model': d_model,
+    'n_heads': n_heads,
+    'd_ff': d_ff,
+    'n_layers': n_layers,
+    'n_iterations': n_iterations,
+}
+
+
+def find_latest_checkpoint(output_dir):
+    """Find the latest checkpoint file and return (path, step) or (None, 0)."""
+    pattern = os.path.join(output_dir, "checkpoint_step*.pt")
+    checkpoints = glob.glob(pattern)
+    if not checkpoints:
+        return None, 0
+    # Extract step numbers and find max
+    def get_step(path):
+        match = re.search(r'step(\d+)\.pt$', path)
+        return int(match.group(1)) if match else 0
+    latest = max(checkpoints, key=get_step)
+    return latest, get_step(latest)
+
+
+def load_checkpoint(path, model, optimizer):
+    """Load checkpoint and verify config matches. Returns start_step or raises error."""
+    print(f"Found checkpoint: {path}")
+    checkpoint = torch.load(path, map_location='cpu', weights_only=False)
+
+    # Verify config matches (if saved - old checkpoints may not have it)
+    saved_config = checkpoint.get('config', {})
+    if saved_config:  # Only verify if config was saved
+        for key, value in CONFIG.items():
+            saved_value = saved_config.get(key)
+            if saved_value != value:
+                raise ValueError(
+                    f"Config mismatch! {key}: saved={saved_value}, current={value}. "
+                    f"Use a fresh output_dir or delete old checkpoints."
+                )
+
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    start_step = checkpoint['step']
+    print(f"Resumed from step {start_step}")
+    return start_step
 
 # Reverse curriculum phases
 PHASES = [
@@ -240,9 +289,41 @@ def train(output_dir="."):
     n_params = sum(p.numel() for p in model.parameters())
     print(f"\nModel parameters: {n_params:,} (baseline: ~800K, TRM: ~5M)")
 
+    # Check for existing checkpoint BEFORE torch.compile()
+    checkpoint_path, start_step = find_latest_checkpoint(output_dir)
+    checkpoint_data = None
+    if checkpoint_path:
+        print(f"Found checkpoint: {checkpoint_path}")
+        checkpoint_data = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+        # Verify config matches (if saved - old checkpoints may not have it)
+        saved_config = checkpoint_data.get('config', {})
+        if saved_config:
+            for key, value in CONFIG.items():
+                saved_value = saved_config.get(key)
+                if saved_value != value:
+                    raise ValueError(
+                        f"Config mismatch! {key}: saved={saved_value}, current={value}. "
+                        f"Use a fresh output_dir or delete old checkpoints."
+                    )
+        model.load_state_dict(checkpoint_data['model_state_dict'])
+        start_step = checkpoint_data['step']
+        print(f"Loaded model weights from step {start_step}")
+    else:
+        start_step = 0
+
     model = torch.compile(model)
 
     optimizer = SAM(model.parameters(), torch.optim.AdamW, rho=sam_rho, lr=lr, betas=(0.9, 0.95))
+
+    # Load optimizer state if resuming
+    if checkpoint_data:
+        optimizer.load_state_dict(checkpoint_data['optimizer_state_dict'])
+        # Move optimizer state to GPU
+        for state in optimizer.base_optimizer.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device)
+        print(f"Resumed from step {start_step}")
 
     print(f"\nExperiment: Scale UP with TRUE batch size (no gradient accumulation)")
     print(f"Architecture: d_model={d_model}, n_layers={n_layers}, n_heads={n_heads}, d_ff={d_ff}")
@@ -337,6 +418,7 @@ def train(output_dir="."):
         checkpoint_path = os.path.join(output_dir, f"checkpoint_step{step}.pt")
         torch.save({
             'step': step,
+            'config': CONFIG,
             'model_state_dict': {k.replace('_orig_mod.', ''): v for k, v in model.state_dict().items()},
             'optimizer_state_dict': optimizer.state_dict(),
         }, checkpoint_path)
@@ -345,7 +427,7 @@ def train(output_dir="."):
     current_phase_name = None
     current_buckets = None
 
-    for step in range(total_steps):
+    for step in range(start_step, total_steps):
         buckets, phase_name = get_phase(step)
         if phase_name != current_phase_name:
             current_phase_name = phase_name

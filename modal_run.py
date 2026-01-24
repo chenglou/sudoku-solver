@@ -29,7 +29,7 @@ image = (
     image=image,
     gpu="H200",
     cpu=8.0,  # more cores for data loading with mp.Pool
-    timeout=6 * 60 * 60,  # 6 hours
+    timeout=24 * 60 * 60,  # 24 hours (max)
     volumes={
         "/hf_cache": hf_cache_volume,
         "/outputs": outputs_volume,

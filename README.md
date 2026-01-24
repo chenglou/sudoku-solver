@@ -29,13 +29,17 @@ python exp_extreme_baseline.py
 python eval_extreme.py
 ```
 
+The training code can run on any GPU and provider, agnostically. I'm personally using Modal, with a small wrapper script (`modal_run.py`) that you don't have to use.
+
 ## Key Files
 
-- `exp_extreme_baseline.py` - **New baseline**: trains on 2.7M sudoku-extreme (71.4% on extreme, 83.3% on Kaggle)
-- `exp_no_x_after_init.py` - Trains on Kaggle data: encodes puzzle once, cleaner architecture (89.9% on Kaggle)
-- `exp_recur_add.py` - Trains on Kaggle data: re-encodes puzzle each iteration (90.6% on Kaggle)
+- `exp_scale_batch.py` - **Current baseline**: 800K params, BS=2048 (73.7% on extreme)
+- `exp_extreme_baseline.py` - Previous baseline: 800K params, BS=512 (71.4% on extreme)
+- `exp_scale_wide.py` - Width scaling experiment: 3.2M params, d=512 (74.8% on extreme)
+- `exp_scale_up_big_gpu.py` - Depth+width scaling: 6.3M params, d=256, L=8 (73.5% on extreme)
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
 - `EXPERIMENTS.md` - Full experiment log and results
+- `modal_run.py` - (Optional) Modal wrapper for running experiments on Modal GPUs
 
 ## Results
 
@@ -71,3 +75,20 @@ Trained on Kaggle data:
 | exp_no_x_after_init | Kaggle 2.7M | 31.7% |
 | exp_recur_add | Kaggle 2.7M | 32.9% |
 | TRM (MLP-Mixer) | sudoku-hard 1K | 87.4% |
+
+### Scaling Experiments
+
+All experiments trained on sudoku-extreme 2.7M for 70K steps.
+
+| Experiment | Params | Architecture | Accuracy |
+|------------|--------|--------------|----------|
+| exp_extreme_baseline | ~800K | d=128, L=4, BS=512 | 71.4% |
+| **exp_scale_batch** | ~800K | d=128, L=4, BS=2048 | **73.7%** |
+| exp_scale_up_big_gpu | 6.3M | d=256, L=8, BS=512 | 73.5% |
+| exp_scale_wide | 3.2M | d=512, L=4, BS=512 | 74.8% |
+| TRM (reference) | 5M | - | 87.4% |
+
+**Key findings:**
+- Batch size scaling (73.7%) nearly matches 8x more params (73.5%) with zero extra cost
+- Width scaling (d=512) outperforms depth scaling (L=8) for same param budget
+- True batch size matters: Scale UP improved from 69.7% (grad accum) to 73.5% (true BS)
