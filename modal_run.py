@@ -1,8 +1,11 @@
 """
-Modal wrapper for scale-up experiment with true batch size.
-Run with: modal run modal_run.py
+Modal wrapper for running experiments on GPU.
 
-Outputs (checkpoints, logs) are saved to a Modal volume and synced locally.
+Usage:
+    modal run --detach modal_run.py --exp exp_scale_up_big_gpu
+    modal run --detach modal_run.py --exp exp_scale_wide
+
+Outputs (checkpoints, logs) are saved to a Modal volume.
 """
 
 import modal
@@ -18,7 +21,7 @@ outputs_volume = modal.Volume.from_name("sudoku-outputs", create_if_missing=True
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install_from_requirements("requirements-modal.txt")
-    .add_local_file("exp_scale_up_big_gpu.py", "/root/exp_scale_up_big_gpu.py")
+    .add_local_dir(".", remote_path="/root/project", ignore=["venv/", "__pycache__/", "*.pyc", ".git/", "logs/", "*.pt", "*.log"])
 )
 
 
@@ -32,18 +35,21 @@ image = (
         "/outputs": outputs_volume,
     },
 )
-def run_training():
+def run_training(exp_name: str):
     import os
     import sys
+    import importlib
 
     # Point HuggingFace to the cached volume
     os.environ["HF_HOME"] = "/hf_cache"
     os.environ["HF_DATASETS_CACHE"] = "/hf_cache/datasets"
 
-    sys.path.insert(0, "/root")
-    from exp_scale_up_big_gpu import train
+    sys.path.insert(0, "/root/project")
 
-    result = train(output_dir="/outputs")
+    # Dynamically import the experiment module
+    exp_module = importlib.import_module(exp_name)
+
+    result = exp_module.train(output_dir="/outputs")
 
     # Volumes auto-persist on function exit
     print(f"\nResult: {result}")
@@ -55,6 +61,7 @@ def run_training():
 
 
 @app.local_entrypoint()
-def main():
-    result = run_training.remote()
+def main(exp: str = "exp_scale_up_big_gpu"):
+    print(f"Running experiment: {exp}")
+    result = run_training.remote(exp_name=exp)
     print(f"\nReturned from Modal: {result}")
