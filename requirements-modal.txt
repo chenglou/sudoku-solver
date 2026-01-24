@@ -1,0 +1,8 @@
+# Minimal dependencies for Modal (no local CUDA libraries)
+# Pin versions to match local environment for dataset compatibility
+torch
+numpy
+datasets==4.4.1
+pandas==2.3.3
+pyarrow==22.0.0
+huggingface_hub
