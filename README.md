@@ -33,9 +33,10 @@ The training code can run on any GPU and provider, agnostically. I'm personally 
 
 ## Key Files
 
-- `exp_scale_batch_4k.py` - **Current baseline**: 800K params, BS=4096 (76.3% on extreme)
-- `exp_scale_batch.py` - Previous baseline: 800K params, BS=2048 (73.7% on extreme)
-- `exp_scale_batch_4k_v2.py` - Curriculum scaling experiment: BS=4096, 10K steps (70.5%)
+- `exp_scale_batch_4k.py` - **Current baseline**: 800K params, BS=4096, 70K steps (76.3% on extreme)
+- `exp_scale_batch.py` - Previous baseline: 800K params, BS=2048, 70K steps (73.7% on extreme)
+- `exp_scale_batch_4k_v2.py` - Reverse curriculum with scaled phases: BS=4096, 10K steps (70.5%)
+- `exp_scale_batch_4k_curriculum.py` - Regular curriculum (easy→hard): BS=4096, 10K steps (67.1%)
 - `exp_scale_wide.py` - Width scaling experiment: 3.2M params, d=512 (74.8% on extreme)
 - `checkpoint_utils.py` - Checkpoint save/resume utilities (Modal preemption-safe)
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
@@ -99,18 +100,22 @@ All experiments trained on sudoku-extreme 2.7M with reverse curriculum.
 
 Tested whether reverse curriculum (hard→easy) still works at large batch sizes.
 
-| Curriculum | Steps | Accuracy | Notes |
-|------------|-------|----------|-------|
-| Reverse (hard→easy) | 10K | 70.5% | Properly scaled phases |
-| Regular (easy→hard) | 10K | 67.1% | Peaked at 68.2%, then dropped |
-| Reverse (unscaled) | 70K | **76.3%** | More steps > scaled phases |
+| Curriculum | Steps | Samples | Accuracy |
+|------------|-------|---------|----------|
+| Reverse scaled | 10K | 41M | 70.5% |
+| Regular scaled | 10K | 41M | 67.1% |
+| Reverse unscaled | 70K | 287M | **76.3%** |
 
-**Learning curve (reverse curriculum, 10K steps):**
-```
-Step 0K: 0% → 3K: 36% → 5K: 63% → 8K: 68.5% → 10K: 70.5%
-```
+**Same-data comparison (41M samples):**
+| Phases | Accuracy |
+|--------|----------|
+| Reverse scaled (10K steps) | **70.5%** |
+| Reverse unscaled (10K steps) | 64.1% |
+
+Scaled phases are +6.4% more efficient at the same data budget!
 
 **Key findings:**
-- Reverse curriculum still beats regular by +3.4% at large batch size
-- Regular curriculum overfits: peaks at step 8K (68.2%), drops to 67.1% by step 10K
-- More training steps beats perfectly-scaled curriculum (76.3% vs 70.5%)
+- Reverse curriculum beats regular by +3.4% at large batch size
+- Regular curriculum overfits: peaks at 68.2%, drops to 67.1%
+- Scaled phases are more data-efficient, but more data still wins overall
+- 76.3% comes from 7x more training data, not from unscaled phases being better
