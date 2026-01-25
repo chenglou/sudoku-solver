@@ -33,10 +33,10 @@ The training code can run on any GPU and provider, agnostically. I'm personally 
 
 ## Key Files
 
-- `exp_scale_batch.py` - **Current baseline**: 800K params, BS=2048 (73.7% on extreme)
-- `exp_extreme_baseline.py` - Previous baseline: 800K params, BS=512 (71.4% on extreme)
+- `exp_scale_batch_4k.py` - **Current baseline**: 800K params, BS=4096 (76.3% on extreme)
+- `exp_scale_batch.py` - Previous baseline: 800K params, BS=2048 (73.7% on extreme)
+- `exp_scale_batch_4k_v2.py` - Curriculum scaling experiment: BS=4096, 10K steps (70.5%)
 - `exp_scale_wide.py` - Width scaling experiment: 3.2M params, d=512 (74.8% on extreme)
-- `exp_scale_up_big_gpu.py` - Depth+width scaling: 6.3M params, d=256, L=8 (73.5% on extreme)
 - `checkpoint_utils.py` - Checkpoint save/resume utilities (Modal preemption-safe)
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
 - `EXPERIMENTS.md` - Full experiment log and results
@@ -79,17 +79,38 @@ Trained on Kaggle data:
 
 ### Scaling Experiments
 
-All experiments trained on sudoku-extreme 2.7M for 70K steps.
+All experiments trained on sudoku-extreme 2.7M with reverse curriculum.
 
-| Experiment | Params | Architecture | Accuracy |
-|------------|--------|--------------|----------|
-| exp_extreme_baseline | ~800K | d=128, L=4, BS=512 | 71.4% |
-| **exp_scale_batch** | ~800K | d=128, L=4, BS=2048 | **73.7%** |
-| exp_scale_up_big_gpu | 6.3M | d=256, L=8, BS=512 | 73.5% |
-| exp_scale_wide | 3.2M | d=512, L=4, BS=512 | 74.8% |
-| TRM (reference) | 5M | - | 87.4% |
+| Experiment | Params | Architecture | Steps | Accuracy |
+|------------|--------|--------------|-------|----------|
+| exp_extreme_baseline | ~800K | d=128, L=4, BS=512 | 70K | 71.4% |
+| exp_scale_batch | ~800K | d=128, L=4, BS=2048 | 70K | 73.7% |
+| **exp_scale_batch_4k** | ~800K | d=128, L=4, BS=4096 | 70K | **76.3%** |
+| exp_scale_up_big_gpu | 6.3M | d=256, L=8, BS=512 | 70K | 73.5% |
+| exp_scale_wide | 3.2M | d=512, L=4, BS=512 | 70K | 74.8% |
+| TRM (reference) | 5M | - | - | 87.4% |
 
 **Key findings:**
-- Batch size scaling (73.7%) nearly matches 8x more params (73.5%) with zero extra cost
-- Width scaling (d=512) outperforms depth scaling (L=8) for same param budget
-- True batch size matters: Scale UP improved from 69.7% (grad accum) to 73.5% (true BS)
+- **Batch size scaling is the most efficient lever**: BS=4096 (76.3%) beats 8x more params (73.5%) with zero extra cost
+- Width scaling (d=512, 74.8%) outperforms depth scaling (L=8, 73.5%) for same param budget
+- True batch size matters: grad accumulation ≠ true large batch
+
+### Curriculum Experiments (BS=4096)
+
+Tested whether reverse curriculum (hard→easy) still works at large batch sizes.
+
+| Curriculum | Steps | Accuracy | Notes |
+|------------|-------|----------|-------|
+| Reverse (hard→easy) | 10K | 70.5% | Properly scaled phases |
+| Regular (easy→hard) | 10K | 67.1% | Peaked at 68.2%, then dropped |
+| Reverse (unscaled) | 70K | **76.3%** | More steps > scaled phases |
+
+**Learning curve (reverse curriculum, 10K steps):**
+```
+Step 0K: 0% → 3K: 36% → 5K: 63% → 8K: 68.5% → 10K: 70.5%
+```
+
+**Key findings:**
+- Reverse curriculum still beats regular by +3.4% at large batch size
+- Regular curriculum overfits: peaks at step 8K (68.2%), drops to 67.1% by step 10K
+- More training steps beats perfectly-scaled curriculum (76.3% vs 70.5%)
