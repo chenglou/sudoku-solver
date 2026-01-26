@@ -928,3 +928,142 @@ This confirms Key Insight #2: depth per iteration matters. With only 2 layers, t
    - Possibly better inductive biases in their specific MLP-Mixer design
 
 **The gap with TRM (69.7% vs 87.4%) is NOT due to model size** - both have ~5M params. Combined with the MLP-Mixer experiment (71.9% ≈ 71.4%), we've ruled out both architecture type and model size as the bottleneck. The remaining differences are in training methodology.
+
+---
+
+## Experiment: Scale UP with True Batch Size
+
+**File:** `exp_scale_up_big_gpu.py`
+
+**Hypothesis:** The previous Scale UP used gradient accumulation (micro_batch=128 × 4). True large batches may behave differently due to BatchNorm statistics, gradient noise, etc. Rerun on H200 GPU with true BS=512.
+
+**Setup:**
+- Same architecture as Scale UP: d_model=256, n_layers=8, n_heads=8, d_ff=1024 (~6.3M params)
+- True BS=512 (no gradient accumulation)
+- 70K steps on sudoku-extreme 2.7M
+
+**Results:**
+
+| Rating | True BS (6.3M) | Grad Accum (5M) | Baseline (800K) |
+|--------|----------------|-----------------|-----------------|
+| 0 | 98.7% | 98.2% | 98.7% |
+| 1-2 | 85.6% | 80.8% | 83.1% |
+| 3-10 | 57.2% | 50.8% | 60.0% |
+| 11-50 | 58.5% | 55.5% | 65.7% |
+| 51+ | 67.3% | 63.0% | 71.3% |
+| **Total** | **73.5%** | **69.7%** | **71.4%** |
+
+**Finding:** True batch size matters! +3.8pp over gradient accumulation version. Now beats baseline by +2.1pp.
+
+---
+
+## Experiment: Scale WIDE
+
+**File:** `exp_scale_wide.py`
+
+**Hypothesis:** Instead of scaling depth (more layers), what if we scale width (larger d_model)?
+
+**Setup:**
+- d_model: 128 → 512
+- n_layers: 4 (unchanged)
+- d_ff: 512 → 2048
+- ~3.2M params
+- 70K steps, BS=512
+
+**Results:**
+
+| Rating | Scale WIDE (3.2M) | Scale UP (6.3M) | Baseline (800K) |
+|--------|-------------------|-----------------|-----------------|
+| 0 | 99.4% | 98.7% | 98.7% |
+| 1-2 | 85.6% | 85.6% | 83.1% |
+| 3-10 | 58.0% | 57.2% | 60.0% |
+| 11-50 | 61.4% | 58.5% | 65.7% |
+| 51+ | 69.5% | 67.3% | 71.3% |
+| **Total** | **74.8%** | **73.5%** | **71.4%** |
+
+**Finding:** Width scaling (74.8%) beats depth scaling (73.5%) with fewer params (3.2M vs 6.3M). Width is more parameter-efficient than depth for this task.
+
+---
+
+## Experiment: Batch Size Scaling on Sudoku-Extreme
+
+**Files:** `exp_scale_batch.py` (BS=2048), `exp_scale_batch_4k.py` (BS=4096)
+
+**Hypothesis:** Earlier experiments showed BS=256-512 was optimal for small datasets. With 2.7M training puzzles, can we push batch size higher?
+
+**Setup:**
+- Same baseline architecture: d_model=128, n_layers=4 (~800K params)
+- Scale BS: 512 → 2048 → 4096
+- Keep LR=1e-3 for BS=2048, LR=1.5e-3 for BS=4096
+- 70K steps on sudoku-extreme 2.7M
+
+**Results:**
+
+| Batch Size | Params | Total | Rating 51+ |
+|------------|--------|-------|------------|
+| 512 (baseline) | 800K | 71.4% | 71.3% |
+| 2048 | 800K | 73.7% | 67.8% |
+| 4096 | 800K | **76.3%** | **72.3%** |
+| TRM (ref) | 5M | 87.4% | - |
+
+**Learning curve (BS=4096):**
+
+| Step | Test Acc |
+|------|----------|
+| 5K | 54.9% |
+| 10K | 64.1% |
+| 20K | 68.5% |
+| 30K | 73.1% |
+| 40K | 73.8% |
+| 50K | 75.4% |
+| 70K | **76.3%** |
+
+**Finding:** Batch size scaling is the most efficient lever we've found:
+- BS=4096 (76.3%) beats 8x more params (73.5%) with zero extra cost per sample
+- +4.9pp over baseline just from larger batches
+- Gap to TRM reduced from 16pp to 11pp
+
+---
+
+## Experiment: Curriculum Scaling at Large Batch Size
+
+**Files:** `exp_scale_batch_4k_v2.py` (reverse), `exp_scale_batch_4k_curriculum.py` (regular)
+
+**Hypothesis:** Our reverse curriculum was designed for BS=512. With BS=4096, each step sees 8x more data. Should phase boundaries scale?
+
+**Setup:**
+- BS=4096 for both experiments
+- 10K steps (same total data as BS=512 @ ~80K steps)
+- Scaled phases: 0-2K, 2K-4K, 4K-6K, 6K-10K
+
+| Curriculum | Phase Order | Steps | Accuracy |
+|------------|-------------|-------|----------|
+| Reverse (scaled) | hard→easy | 10K | **70.5%** |
+| Regular (scaled) | easy→hard | 10K | 67.1% |
+
+**Same-data efficiency comparison:**
+
+At 41M samples (10K steps @ BS=4096):
+- Scaled reverse curriculum: **70.5%**
+- Unscaled reverse curriculum: **64.1%**
+
+Scaled phases are **+6.4% more efficient** at the same data budget.
+
+**Learning curves:**
+
+Reverse curriculum (10K steps):
+```
+Step 0K: 0% → 2K: 3% → 3K: 36% → 5K: 63% → 8K: 68.5% → 10K: 70.5%
+```
+
+Regular curriculum (10K steps):
+```
+Step 0K: 0% → 2K: 31% → 4K: 52% → 6K: 65% → 8K: 68.1% → 10K: 67.1% (dropped!)
+```
+
+**Key observations:**
+1. Regular curriculum **overfits**: peaks at 68.2% (step 8K), then drops to 67.1%
+2. Loss spikes visible at phase transitions (14K, 42K in unscaled runs)
+3. Reverse curriculum keeps improving; regular curriculum degrades after step 8K
+
+**Finding:** Reverse curriculum still wins by +3.4pp at large batch size. Scaling phases improves data efficiency, but more training data still wins overall (76.3% with 70K steps vs 70.5% with 10K steps).

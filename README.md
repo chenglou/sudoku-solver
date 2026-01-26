@@ -71,51 +71,15 @@ Trained on Kaggle data:
 
 ### Sudoku-Extreme Benchmark
 
-| Model | Training Data | Accuracy |
-|-------|---------------|----------|
-| **exp_extreme_baseline** | sudoku-extreme 2.7M | **71.4%** |
-| exp_no_x_after_init | Kaggle 2.7M | 31.7% |
-| exp_recur_add | Kaggle 2.7M | 32.9% |
-| TRM (MLP-Mixer) | sudoku-hard 1K | 87.4% |
-
-### Scaling Experiments
-
-All experiments trained on sudoku-extreme 2.7M with reverse curriculum.
-
-| Experiment | Params | Architecture | Steps | Accuracy |
-|------------|--------|--------------|-------|----------|
-| exp_extreme_baseline | ~800K | d=128, L=4, BS=512 | 70K | 71.4% |
-| exp_scale_batch | ~800K | d=128, L=4, BS=2048 | 70K | 73.7% |
-| **exp_scale_batch_4k** | ~800K | d=128, L=4, BS=4096 | 70K | **76.3%** |
-| exp_scale_up_big_gpu | 6.3M | d=256, L=8, BS=512 | 70K | 73.5% |
-| exp_scale_wide | 3.2M | d=512, L=4, BS=512 | 70K | 74.8% |
-| TRM (reference) | 5M | - | - | 87.4% |
+| Model | Params | Accuracy |
+|-------|--------|----------|
+| **exp_scale_batch_4k** | ~800K | **76.3%** |
+| exp_scale_wide | 3.2M | 74.8% |
+| exp_extreme_baseline | ~800K | 71.4% |
+| exp_no_x_after_init (Kaggle) | ~800K | 31.7% |
+| TRM (reference) | 5M | 87.4% |
 
 **Key findings:**
-- **Batch size scaling is the most efficient lever**: BS=4096 (76.3%) beats 8x more params (73.5%) with zero extra cost
-- Width scaling (d=512, 74.8%) outperforms depth scaling (L=8, 73.5%) for same param budget
-- True batch size matters: grad accumulation ≠ true large batch
-
-### Curriculum Experiments (BS=4096)
-
-Tested whether reverse curriculum (hard→easy) still works at large batch sizes.
-
-| Curriculum | Steps | Samples | Accuracy |
-|------------|-------|---------|----------|
-| Reverse scaled | 10K | 41M | 70.5% |
-| Regular scaled | 10K | 41M | 67.1% |
-| Reverse unscaled | 70K | 287M | **76.3%** |
-
-**Same-data comparison (41M samples):**
-| Phases | Accuracy |
-|--------|----------|
-| Reverse scaled (10K steps) | **70.5%** |
-| Reverse unscaled (10K steps) | 64.1% |
-
-Scaled phases are +6.4% more efficient at the same data budget!
-
-**Key findings:**
-- Reverse curriculum beats regular by +3.4% at large batch size
-- Regular curriculum overfits: peaks at 68.2%, drops to 67.1%
-- Scaled phases are more data-efficient, but more data still wins overall
-- 76.3% comes from 7x more training data, not from unscaled phases being better
+- Batch size scaling is the most efficient lever (BS=4096 beats 8x more params)
+- Reverse curriculum (hard→easy) beats regular by +3.4%
+- See [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis
