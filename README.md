@@ -74,7 +74,8 @@ tensorboard --logdir runs/
 - `EXPERIMENTS.md` - Full experiment log and results
 - `modal_run.py` - (Optional) Modal wrapper for running experiments on Modal GPUs
 - `requirements-modal.txt` - Minimal deps for Modal (no local CUDA libraries)
-- `logs_to_tensorboard.py` - Convert experiment logs to TensorBoard format
+- `logs_to_tensorboard.py` - Convert experiment logs to TensorBoard format (post-hoc)
+- `tensorboard_utils.py` - Real-time TensorBoard logging utility for experiments
 
 ## Results
 
