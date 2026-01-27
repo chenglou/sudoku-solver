@@ -357,6 +357,8 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | **MLP-Mixer** | 25k extreme | **71.9%** | Same as Transformer |
 | Scale DOWN (100K params) | 25k extreme | 8.3% | Too small, fails |
 | Scale UP (5M params) | 25k extreme | 69.7% | More params ≠ better |
+| **BS=4096** | 25k extreme | **76.3%** | Batch scaling most efficient |
+| TRM Nested (4.5M) | 25k extreme | 60.3% | TRM architecture hurts! |
 
 ---
 
@@ -1067,3 +1069,41 @@ Step 0K: 0% → 2K: 31% → 4K: 52% → 6K: 65% → 8K: 68.1% → 10K: 67.1% (dr
 3. Reverse curriculum keeps improving; regular curriculum degrades after step 8K
 
 **Finding:** Reverse curriculum still wins by +3.4pp at large batch size. Scaling phases improves data efficiency, but more training data still wins overall (76.3% with 70K steps vs 70.5% with 10K steps).
+
+---
+
+## Experiment: TRM Architecture (Nested H_cycles/L_cycles)
+
+**File:** `exp_trm_nested.py`
+
+**Hypothesis:** TRM (Tiny Recursive Models) achieves 87.4% on sudoku-extreme. They use a specific architecture with nested iteration loops (H_cycles × L_cycles) where outer loops run without gradients. Does adopting their architecture close the gap?
+
+**Setup:**
+- TRM-style MLP-T architecture (sequence-wise MLP instead of attention)
+- hidden_size=512, L_layers=2 (matching TRM)
+- H_cycles=3, L_cycles=6 (first 2 outer loops without gradients)
+- ~4.5M params
+- Trained on our 2.7M sudoku-extreme data with reverse curriculum
+- BS=4096, lr=1e-4, weight_decay=1.0
+- 70K steps
+
+**Results:**
+
+| Rating | TRM Nested | Baseline (BS=4096) | TRM (reference) |
+|--------|------------|-------------------|-----------------|
+| 0 (easy) | 95.1% | 98.7% | - |
+| 1-2 | 73.7% | 83.1% | - |
+| 3-10 | 41.5% | 60.0% | - |
+| 11-50 | 44.4% | 65.7% | - |
+| 51+ | 46.9% | 71.3% | - |
+| **Total** | **60.3%** | **76.3%** | **87.4%** |
+
+**Finding:** TRM's architecture **hurts** performance significantly (-16pp vs baseline).
+
+The nested H_cycles/L_cycles structure with no-gradient outer loops appears to be harmful when combined with our training setup. Several possible explanations:
+
+1. **Data mismatch**: TRM trains on 1K puzzles × 1000 augmentations. The nested loop structure may be designed for that small-data regime, not 2.7M puzzles.
+2. **No-gradient warmup wasteful**: Running 2 full outer cycles without gradients may work when each "step" sees many augmented versions of the same puzzle, but wastes computation when each step sees fresh data.
+3. **MLP-T not inherently better**: Despite fixed Sudoku constraints favoring fixed mixing patterns, MLP-T doesn't outperform attention at this scale.
+
+**Conclusion:** TRM's architecture is NOT the source of their advantage. The gap must come from their data strategy (1K puzzles × 1000 digit relabelings) or training tricks (EMA). Next: test their exact recipe with `exp_trm_exact.py`.
