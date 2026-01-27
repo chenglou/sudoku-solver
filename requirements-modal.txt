@@ -6,3 +6,4 @@ datasets==4.4.1
 pandas==2.3.3
 pyarrow==22.0.0
 huggingface_hub
+tensorboard
