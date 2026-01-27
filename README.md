@@ -31,6 +31,37 @@ python eval_extreme.py
 
 The training code can run on any GPU and provider, agnostically. I'm personally using Modal, with a small wrapper script (`modal_run.py`) that you don't have to use.
 
+## Modal (Optional)
+
+For running on Modal's cloud GPUs:
+
+```sh
+pip install modal
+modal token new  # authenticate (one-time)
+
+# Run experiment (detached so it survives terminal close)
+modal run --detach modal_run.py --exp exp_scale_batch_4k
+
+# Monitor progress
+modal app logs <app-id>  # app-id shown when you launch
+
+# List/download outputs
+modal volume ls sudoku-outputs
+modal volume get sudoku-outputs model_scale_batch_4k.pt .
+```
+
+Experiments must have a `train(output_dir=".")` function. Modal deps are in `requirements-modal.txt` (minimal, no local CUDA).
+
+## TensorBoard
+
+Convert experiment logs to TensorBoard format:
+
+```sh
+python logs_to_tensorboard.py
+tensorboard --logdir runs/
+# Open http://localhost:6006
+```
+
 ## Key Files
 
 - `exp_scale_batch_4k.py` - **Current baseline**: 800K params, BS=4096, 70K steps (76.3% on extreme)
@@ -42,6 +73,8 @@ The training code can run on any GPU and provider, agnostically. I'm personally 
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
 - `EXPERIMENTS.md` - Full experiment log and results
 - `modal_run.py` - (Optional) Modal wrapper for running experiments on Modal GPUs
+- `requirements-modal.txt` - Minimal deps for Modal (no local CUDA libraries)
+- `logs_to_tensorboard.py` - Convert experiment logs to TensorBoard format
 
 ## Results
 
