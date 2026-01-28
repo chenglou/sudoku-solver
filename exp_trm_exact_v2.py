@@ -1,15 +1,17 @@
-# Experiment: EXACT TRM reproduction
-# Following their exact recipe from the README:
-#   python dataset/build_sudoku_dataset.py --output-dir data/sudoku-extreme-1k-aug-1000 --subsample-size 1000 --num-aug 1000
-#   python pretrain.py arch=trm data_paths="[data/sudoku-extreme-1k-aug-1000]" epochs=50000 ...
+# Experiment: EXACT TRM reproduction v2
 #
-# Key settings:
-#   - 1000 random puzzles from ALL difficulties (not filtered)
-#   - On-the-fly augmentation (digit relabeling, row/col shuffle, transpose)
-#   - BS=256, lr=1e-4, weight_decay=1.0
+# Key fix from v1: TRM trains for 50K EPOCHS over 1M examples, not 50K steps!
+# - 1K puzzles × 1000 augmentations = 1M pre-generated examples
+# - 50K epochs × (1M / BS) steps per epoch = ~65M steps total
+# - They pre-generate augmentations (not on-the-fly)
+#
+# TRM settings:
+#   - 1000 random puzzles, 1000 augmentations each = 1M examples
+#   - BS=768, lr=1e-4, weight_decay=1.0
 #   - MLP-T (no attention), no position encoding
 #   - H_cycles=3, L_cycles=6, L_layers=2, hidden_size=512
 #   - EMA with decay 0.999
+#   - 50K epochs (~65M steps, ~20 hours on L40S)
 
 import torch
 import torch.nn as nn
@@ -18,13 +20,12 @@ from datasets import load_dataset
 import random
 import numpy as np
 import os
-import copy
 from checkpoint_utils import find_latest_checkpoint, load_checkpoint, restore_optimizer, save_checkpoint
 from tensorboard_utils import TBLogger
 
 torch.set_float32_matmul_precision('high')
 
-CHECKPOINT_PREFIX = "trm_exact_checkpoint_step"
+CHECKPOINT_PREFIX = "trm_exact_v2_checkpoint_step"
 
 # EXACT TRM hyperparameters
 hidden_size = 512
@@ -34,23 +35,25 @@ L_cycles = 6
 expansion = 4
 lr = 1e-4
 weight_decay = 1.0
-batch_size = 256
-total_steps = 50000  # TRM uses 50000 "epochs" - with their small data this is ~50K steps
+batch_size = 768  # TRM uses 768
 ema_decay = 0.999
 
 # EXACT TRM data settings
-train_size = 1000  # Exactly 1000 puzzles
-# No difficulty filter - random from ALL
+n_base_puzzles = 1000
+n_augmentations = 1000  # Per puzzle
+n_epochs = 50000  # TRM uses 50K epochs
 
 CONFIG = {
-    'experiment': 'exp_trm_exact',
+    'experiment': 'exp_trm_exact_v2',
     'hidden_size': hidden_size,
     'L_layers': L_layers,
     'H_cycles': H_cycles,
     'L_cycles': L_cycles,
     'batch_size': batch_size,
     'lr': lr,
-    'train_size': train_size,
+    'n_base_puzzles': n_base_puzzles,
+    'n_augmentations': n_augmentations,
+    'n_epochs': n_epochs,
 }
 
 RATING_BUCKETS = [
@@ -171,7 +174,6 @@ class EMA:
         self.shadow = {}
         for name, param in model.named_parameters():
             if param.requires_grad:
-                # Strip _orig_mod. prefix from compiled models
                 clean_name = name.replace('_orig_mod.', '')
                 self.shadow[clean_name] = param.data.clone()
 
@@ -185,7 +187,6 @@ class EMA:
                 self.shadow[clean_name].mul_(self.decay).add_(param.data, alpha=1 - self.decay)
 
     def apply(self, model):
-        """Apply EMA weights to model (for evaluation)."""
         self.backup = {}
         for name, param in model.named_parameters():
             if param.requires_grad:
@@ -194,7 +195,6 @@ class EMA:
                 param.data.copy_(self.shadow[clean_name])
 
     def restore(self, model):
-        """Restore original weights after evaluation."""
         for name, param in model.named_parameters():
             if param.requires_grad:
                 clean_name = self._clean_name(name)
@@ -210,22 +210,6 @@ def parse_puzzle(puzzle_str):
     return arr
 
 
-def puzzle_to_tensor(puzzle_arr):
-    return torch.tensor(puzzle_arr.flatten(), dtype=torch.long)
-
-
-def get_targets_from_arr(board_arr, solution_arr):
-    board_flat = board_arr.flatten()
-    solution_flat = solution_arr.flatten()
-    holes = []
-    targets = []
-    for i in range(81):
-        if board_flat[i] == 0:
-            holes.append(i)
-            targets.append(solution_flat[i] - 1)
-    return torch.tensor(holes), torch.tensor(targets)
-
-
 def train(output_dir="."):
     device = torch.device("cuda")
 
@@ -233,29 +217,57 @@ def train(output_dir="."):
     dataset = load_dataset("sapientinc/sudoku-extreme", split="train")
     print(f"Total available: {len(dataset)}")
 
-    # EXACT TRM: Random 1000 puzzles from ALL difficulties (no filter)
-    print(f"\nSampling {train_size} RANDOM puzzles (all difficulties, like TRM)...")
+    # Sample base puzzles
+    print(f"\nSampling {n_base_puzzles} RANDOM base puzzles...")
     all_indices = list(range(len(dataset)))
-    selected_indices = random.sample(all_indices, train_size)
+    selected_indices = random.sample(all_indices, n_base_puzzles)
 
-    # Check difficulty distribution of sampled puzzles
-    ratings = [dataset[i]['rating'] for i in selected_indices]
-    print(f"  Sampled difficulty distribution:")
-    print(f"    Rating 0: {sum(1 for r in ratings if r == 0)}")
-    print(f"    Rating 1-2: {sum(1 for r in ratings if 1 <= r <= 2)}")
-    print(f"    Rating 3-10: {sum(1 for r in ratings if 3 <= r <= 10)}")
-    print(f"    Rating 11-50: {sum(1 for r in ratings if 11 <= r <= 50)}")
-    print(f"    Rating 51+: {sum(1 for r in ratings if r > 50)}")
-
-    train_puzzles = []
+    base_puzzles = []
     for idx in selected_indices:
         puzzle_str = dataset[idx]['question']
         solution_str = dataset[idx]['answer']
         board = parse_puzzle(puzzle_str)
         solution = parse_puzzle(solution_str)
-        train_puzzles.append((board, solution))
-    print(f"  Loaded {len(train_puzzles)} base puzzles")
+        base_puzzles.append((board, solution))
 
+    # Pre-generate ALL augmentations (like TRM does)
+    print(f"Pre-generating {n_base_puzzles} × {n_augmentations} = {n_base_puzzles * n_augmentations} augmented examples...")
+    all_examples = []
+    for i, (board, solution) in enumerate(base_puzzles):
+        # Include original
+        all_examples.append((board.copy(), solution.copy()))
+        # Add augmentations
+        for _ in range(n_augmentations):
+            aug_board, aug_solution = shuffle_sudoku(board.copy(), solution.copy())
+            all_examples.append((aug_board, aug_solution))
+        if (i + 1) % 100 == 0:
+            print(f"  {i + 1}/{n_base_puzzles} puzzles processed...")
+
+    n_examples = len(all_examples)
+    print(f"Total training examples: {n_examples}")
+
+    # Pre-encode all examples
+    print("Encoding all examples...")
+    all_x = torch.zeros(n_examples, 81, dtype=torch.long)
+    all_holes = []
+    all_targets = []
+
+    for i, (board, solution) in enumerate(all_examples):
+        all_x[i] = torch.tensor(board.flatten(), dtype=torch.long)
+        board_flat = board.flatten()
+        solution_flat = solution.flatten()
+        holes = []
+        targets = []
+        for j in range(81):
+            if board_flat[j] == 0:
+                holes.append(j)
+                targets.append(solution_flat[j] - 1)
+        all_holes.append(torch.tensor(holes, dtype=torch.long))
+        all_targets.append(torch.tensor(targets, dtype=torch.long))
+
+    print("Examples encoded.")
+
+    # Test data
     test_dataset = load_dataset("sapientinc/sudoku-extreme", split="test")
     print(f"Test set: {len(test_dataset)}")
 
@@ -291,6 +303,16 @@ def train(output_dir="."):
     param_count = sum(p.numel() for p in model.parameters())
     print(f"\nModel parameters: {param_count:,}")
 
+    # Calculate training stats
+    steps_per_epoch = (n_examples + batch_size - 1) // batch_size
+    total_steps = n_epochs * steps_per_epoch
+    print(f"\nTraining setup:")
+    print(f"  Examples: {n_examples}")
+    print(f"  Batch size: {batch_size}")
+    print(f"  Steps per epoch: {steps_per_epoch}")
+    print(f"  Epochs: {n_epochs}")
+    print(f"  Total steps: {total_steps:,}")
+
     checkpoint_path, start_step = find_latest_checkpoint(output_dir, CHECKPOINT_PREFIX)
     checkpoint_data = None
     if checkpoint_path:
@@ -299,9 +321,7 @@ def train(output_dir="."):
         start_step = checkpoint_data['step']
         print(f"Loaded model weights from step {start_step}")
 
-    # Initialize EMA before compile
     ema = EMA(model, decay=ema_decay)
-
     model = torch.compile(model)
 
     optimizer = torch.optim.AdamW(
@@ -315,18 +335,16 @@ def train(output_dir="."):
         restore_optimizer(optimizer, checkpoint_data, device)
         print(f"Resumed from step {start_step}")
 
-    print(f"\nExperiment: EXACT TRM Reproduction")
-    print(f"Architecture: hidden_size={hidden_size}, L_layers={L_layers}, MLP-T (no attention)")
+    print(f"\nExperiment: EXACT TRM Reproduction v2")
+    print(f"Architecture: hidden_size={hidden_size}, L_layers={L_layers}, MLP-T")
     print(f"Iterations: H_cycles={H_cycles} × L_cycles={L_cycles}")
-    print(f"Data: {train_size} RANDOM puzzles (all difficulties) + on-the-fly augmentation")
+    print(f"Data: {n_base_puzzles} puzzles × {n_augmentations} augmentations (pre-generated)")
     print(f"Batch size: {batch_size}, lr: {lr}, weight_decay: {weight_decay}")
     print(f"EMA decay: {ema_decay}")
     print(f"Output directory: {output_dir}")
 
-    # TensorBoard logger
-    tb_logger = TBLogger(output_dir, "exp_trm_exact")
-
-    log_path = os.path.join(output_dir, "exp_trm_exact.log")
+    tb_logger = TBLogger(output_dir, "exp_trm_exact_v2")
+    log_path = os.path.join(output_dir, "exp_trm_exact_v2.log")
     log_file = open(log_path, "a")
 
     def log(msg):
@@ -334,36 +352,7 @@ def train(output_dir="."):
         log_file.write(msg + "\n")
         log_file.flush()
 
-    def sample_augmented_batch(bs):
-        x_list = []
-        holes_list = []
-        counts_list = []
-
-        for _ in range(bs):
-            base_board, base_solution = random.choice(train_puzzles)
-            aug_board, aug_solution = shuffle_sudoku(base_board.copy(), base_solution.copy())
-            x = puzzle_to_tensor(aug_board)
-            holes, targets = get_targets_from_arr(aug_board, aug_solution)
-            x_list.append(x)
-            holes_list.append((holes, targets))
-            counts_list.append(len(holes))
-
-        x_batch = torch.stack(x_list).to(device)
-        holes_batch = [(h[0].to(device), h[1].to(device)) for h in holes_list]
-        return x_batch, holes_batch, counts_list
-
-    def compute_loss(x_batch, holes_batch, counts_batch):
-        logits = model(x_batch)
-        hole_c = torch.cat([h[0] for h in holes_batch])
-        targets = torch.cat([h[1] for h in holes_batch])
-        counts = torch.tensor(counts_batch, device=device)
-        hole_b = torch.repeat_interleave(torch.arange(len(holes_batch), device=device), counts)
-        logits_holes = logits[hole_b, hole_c]
-        loss = F.cross_entropy(logits_holes, targets)
-        return loss, logits, hole_b, hole_c, targets
-
     def evaluate_all():
-        # Apply EMA weights for evaluation
         ema.apply(model)
         model.eval()
         results = {}
@@ -391,7 +380,6 @@ def train(output_dir="."):
                 total_solved += puzzles_solved
                 total_puzzles += len(puzzles)
         results['_total'] = {'solved': total_solved, 'total': total_puzzles}
-        # Restore original weights
         ema.restore(model)
         return results
 
@@ -400,44 +388,64 @@ def train(output_dir="."):
         save_checkpoint(path, step, model, optimizer, CONFIG)
         print(f"Checkpoint saved: {path}")
 
-    for step in range(start_step, total_steps):
+    # Training loop - epoch-based like TRM
+    step = start_step
+    start_epoch = start_step // steps_per_epoch
+
+    for epoch in range(start_epoch, n_epochs):
+        # Shuffle examples each epoch
+        perm = torch.randperm(n_examples)
+
         model.train()
-        x_batch, holes_batch, counts_batch = sample_augmented_batch(batch_size)
+        for batch_start in range(0, n_examples, batch_size):
+            batch_idx = perm[batch_start:batch_start + batch_size]
+            x_batch = all_x[batch_idx].to(device)
 
-        optimizer.zero_grad()
-        with torch.autocast('cuda', dtype=torch.bfloat16):
-            loss, logits, hole_b, hole_c, targets = compute_loss(x_batch, holes_batch, counts_batch)
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        optimizer.step()
+            # Gather holes and targets for batch
+            holes_batch = [all_holes[i].to(device) for i in batch_idx]
+            targets_batch = [all_targets[i].to(device) for i in batch_idx]
+            counts = [len(h) for h in holes_batch]
 
-        # Update EMA
-        ema.update(model)
+            optimizer.zero_grad()
+            with torch.autocast('cuda', dtype=torch.bfloat16):
+                logits = model(x_batch)
+                hole_c = torch.cat(holes_batch)
+                targets = torch.cat(targets_batch)
+                counts_t = torch.tensor(counts, device=device)
+                hole_b = torch.repeat_interleave(torch.arange(len(holes_batch), device=device), counts_t)
+                logits_holes = logits[hole_b, hole_c]
+                loss = F.cross_entropy(logits_holes, targets)
 
-        if step % 100 == 0 or step == total_steps - 1:
-            with torch.no_grad():
-                preds = logits[hole_b, hole_c].argmax(dim=-1)
-                train_acc = (preds == targets).float().mean().item()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
+            ema.update(model)
 
-            # Log to TensorBoard
-            tb_logger.log(step, loss=loss.item(), train_acc=train_acc * 100)
+            step += 1
 
-            if step % 5000 == 0 or step == total_steps - 1:
-                results = evaluate_all()
-                total_r = results.pop('_total')
-                log(f"Step {step:5d} | Loss: {loss.item():.4f} Acc: {train_acc:.2%} | " +
-                    " | ".join([f"{name}: {r['solved']}/{r['total']}" for name, r in results.items()]) +
-                    f" | Total: {total_r['solved']}/{total_r['total']} ({100*total_r['solved']/total_r['total']:.1f}%)")
-                # Log test metrics to TensorBoard
-                tb_logger.log(step, test_acc=100 * total_r['solved'] / total_r['total'])
-                for name, r in results.items():
-                    tb_logger.log(step, **{f"Test/{name}": 100 * r['solved'] / r['total']})
-                do_save_checkpoint(step)
-            else:
-                log(f"Step {step:5d} | Loss: {loss.item():.4f} Acc: {train_acc:.2%}")
+            # Logging
+            if step % 1000 == 0:
+                with torch.no_grad():
+                    preds = logits_holes.argmax(dim=-1)
+                    train_acc = (preds == targets).float().mean().item()
+
+                tb_logger.log(step, loss=loss.item(), train_acc=train_acc * 100)
+
+                if step % 50000 == 0:
+                    results = evaluate_all()
+                    total_r = results.pop('_total')
+                    log(f"Step {step:7d} (epoch {epoch}) | Loss: {loss.item():.4f} Acc: {train_acc:.2%} | " +
+                        " | ".join([f"{name}: {r['solved']}/{r['total']}" for name, r in results.items()]) +
+                        f" | Total: {total_r['solved']}/{total_r['total']} ({100*total_r['solved']/total_r['total']:.1f}%)")
+                    tb_logger.log(step, test_acc=100 * total_r['solved'] / total_r['total'])
+                    for name, r in results.items():
+                        tb_logger.log(step, **{f"Test/{name}": 100 * r['solved'] / r['total']})
+                    do_save_checkpoint(step)
+                else:
+                    log(f"Step {step:7d} (epoch {epoch}) | Loss: {loss.item():.4f} Acc: {train_acc:.2%}")
 
     log("\n" + "="*60)
-    log("FINAL RESULTS - EXACT TRM Reproduction")
+    log("FINAL RESULTS - EXACT TRM Reproduction v2")
     log("="*60)
     results = evaluate_all()
     total_r = results.pop('_total')
@@ -447,7 +455,7 @@ def train(output_dir="."):
     log(f"Our baseline: 76.3%")
     log(f"TRM claimed: 87.4%")
 
-    final_path = os.path.join(output_dir, "model_trm_exact.pt")
+    final_path = os.path.join(output_dir, "model_trm_exact_v2.pt")
     state_dict = {k.replace('_orig_mod.', ''): v for k, v in model.state_dict().items()}
     torch.save(state_dict, final_path)
     log(f"Final model saved: {final_path}")
