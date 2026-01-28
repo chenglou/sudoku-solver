@@ -77,43 +77,13 @@ tensorboard --logdir runs/
 - `logs_to_tensorboard.py` - Convert experiment logs to TensorBoard format (post-hoc)
 - `tensorboard_utils.py` - Real-time TensorBoard logging utility for experiments
 
-## Results
+## Results (sudoku-extreme benchmark)
 
-### Cross-Dataset Comparison
+| Model | Params | Batch Size | Accuracy |
+|-------|--------|------------|----------|
+| **exp_scale_batch_4k** | 800K | 4096 | **76.3%** |
+| exp_scale_wide | 3.2M | 512 | 74.8% |
+| exp_extreme_baseline | 800K | 512 | 71.4% |
+| [nano-trm](https://github.com/olivkoch/nano-trm) (reference) | 5M | 256 | 87.4% |
 
-| Trained on | Data | Kaggle test | sudoku-extreme test |
-|------------|------|-------------|---------------------|
-| Kaggle | 2.7M | **89.9%** | 31.7% |
-| sudoku-extreme | 400K | 81.3% | 63.4% |
-| **sudoku-extreme** | **2.7M** | 83.3% | **71.4%** |
-| TRM (reference) | 1K | - | 87.4% |
-
-**Key finding:** Domain match matters more than data quantity. Training on sudoku-extreme (400K) beats Kaggle (2.7M) for sudoku-extreme eval despite 7x less data.
-
-### Kaggle 3M Dataset (500 test puzzles per difficulty)
-
-Trained on Kaggle data:
-
-| Difficulty | exp_no_x_after_init | exp_recur_add |
-|------------|---------------------|---------------|
-| 0.x (easy) | 500/500 (100.0%) | 498/500 (99.6%) |
-| 1.x | 489/500 (97.8%) | 483/500 (96.6%) |
-| 2.x | 452/500 (90.4%) | 461/500 (92.2%) |
-| 3.x | 417/500 (83.4%) | 424/500 (84.8%) |
-| 4.x+ (hard) | 390/500 (78.0%) | 399/500 (79.8%) |
-| **Total** | **2248/2500 (89.9%)** | **2265/2500 (90.6%)** |
-
-### Sudoku-Extreme Benchmark
-
-| Model | Params | Accuracy |
-|-------|--------|----------|
-| **exp_scale_batch_4k** | ~800K | **76.3%** |
-| exp_scale_wide | 3.2M | 74.8% |
-| exp_extreme_baseline | ~800K | 71.4% |
-| exp_no_x_after_init (Kaggle) | ~800K | 31.7% |
-| TRM (reference) | 5M | 87.4% |
-
-**Key findings:**
-- Batch size scaling is the most efficient lever (BS=4096 beats 8x more params)
-- Reverse curriculum (hard→easy) beats regular by +3.4%
-- See [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis
+See [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis and ablations.
