@@ -354,7 +354,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | Recurrence no preds | 2.5k mixed | 2238 | Preds still helps |
 | No x after init | 2.5k mixed | 2248 | Removing x costs only -0.7% |
 | Norm pred (TRM-style) | 2.5k mixed | 2257 | RMS norm works, but no gain |
-| Eval on sudoku-extreme | 423k extreme | 32.9% | vs TRM 87.4% |
+| Eval on sudoku-extreme | 423k extreme | 32.9% | vs nano-trm 87.4% |
 | Train on sudoku-extreme | 22k extreme | 63.4% | Domain match +32pp |
 | **MLP-Mixer** | 25k extreme | **71.9%** | Same as Transformer |
 | Scale DOWN (100K params) | 25k extreme | 8.3% | Too small, fails |
@@ -404,7 +404,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 
 19. **Training data domain matters more than quantity** - Training on 400K sudoku-extreme puzzles achieves 63.4% on sudoku-extreme test, vs 31.7% from 2.7M Kaggle puzzles (+32pp with 7x less data). However, the Kaggle-trained model still wins on Kaggle test (89.9% vs 81.3%). Models specialize to their training domain rather than learning universal sudoku solving.
 
-20. **Model size is NOT the bottleneck** - Scaling from 800K to 5M params (matching TRM) actually made results worse (69.7% vs 71.4%). Combined with the MLP-Mixer result (71.9% ≈ 71.4%), we've ruled out both architecture type and model size as explanations for TRM's 87.4% advantage. The gap must come from TRM's training methodology: data augmentation (1000 digit relabelings), nested iteration loops (H_cycles/L_cycles), or EMA.
+20. **Model size is NOT the bottleneck** - Scaling from 800K to 5M params (matching nano-trm) actually made results worse (69.7% vs 71.4%). Combined with the MLP-Mixer result (71.9% ≈ 71.4%), we've ruled out both architecture type and model size as explanations for nano-trm's 87.4% advantage. Data augmentation (digit relabeling) was tested and didn't help. Currently investigating: LR warmup, EMA, non-learned hidden state init (std=1.0), cosine LR decay, carry across batches.
 
 ---
 
@@ -700,7 +700,7 @@ logits = self.output_head(h) + pred_state
 
 **Dataset:** [sapientinc/sudoku-extreme](https://huggingface.co/datasets/sapientinc/sudoku-extreme) - 423k test puzzles rated by backtrack count (higher = harder).
 
-**Comparison with TRM** (Tiny Recursive Model, 87.4% on this benchmark):
+**Comparison with [nano-trm](https://github.com/olivkoch/nano-trm)** (87.4% on this benchmark):
 
 | Rating | Baseline | recur_add | TRM |
 |--------|----------|-----------|-----|
@@ -716,19 +716,7 @@ logits = self.output_head(h) + pred_state
 
 **Analysis:**
 
-Recurrence helps (+8.5pp overall), but we're still far from TRM. Key differences:
-
-1. **Architecture**: TRM uses MLP-Mixer (attention-free), we use transformer
-2. **Model size**: TRM 5M params, us ~800k params
-3. **Training data**: TRM trains on 1K examples, we train on 2.7M
-
-TRM achieves 87% with 5M params on 1K training examples. We achieve 33% with 800k params on 2.7M examples. Their inductive bias is fundamentally better for sudoku.
-
-**Why MLP-Mixer may be better for sudoku:**
-
-Sudoku has **fixed constraint structure** - cell 0 always interacts with the same 20 neighbors (same row, col, box). Attention's ability to dynamically choose which tokens to attend to is overkill - a fixed mixing pattern suffices.
-
-MLP-Mixer learns a fixed [81, 81] mixing matrix, which can hardcode "cell 0 attends to cells 1-8, 9, 18, 27..." Attention wastes capacity learning what should be constant.
+Recurrence helps (+8.5pp overall), but we're still far from nano-trm. Later experiments (MLP-Mixer, Scale UP) ruled out architecture and model size as the gap. See Key Insight #20 for current understanding.
 
 ---
 
@@ -750,7 +738,7 @@ MLP-Mixer learns a fixed [81, 81] mixing matrix, which can hardcode "cell 0 atte
 |------------|-------------------|---------------------------|
 | Kaggle 2.7M | **89.9%** | 31.7% |
 | sudoku-extreme 400K | 81.3% | **63.4%** |
-| TRM (sudoku-hard 1K) | - | **87.4%** |
+| nano-trm (reference) | - | **87.4%** |
 
 **By difficulty on sudoku-extreme:**
 
@@ -792,7 +780,7 @@ MLP-Mixer learns a fixed [81, 81] mixing matrix, which can hardcode "cell 0 atte
 | Kaggle | 2.7M | **89.9%** | 31.7% |
 | sudoku-extreme | 400K | 81.3% | 63.4% |
 | **sudoku-extreme** | **2.7M** | 83.3% | **71.4%** |
-| TRM (reference) | 1K | - | 87.4% |
+| nano-trm (reference) | 1K | - | 87.4% |
 
 **By difficulty on sudoku-extreme test:**
 
@@ -808,7 +796,7 @@ MLP-Mixer learns a fixed [81, 81] mixing matrix, which can hardcode "cell 0 atte
 
 1. **More data helps**: +8pp on sudoku-extreme (63.4% → 71.4%) by increasing from 400K to 2.7M
 2. **Cross-domain also improves**: +2pp on Kaggle (81.3% → 83.3%) despite never seeing Kaggle puzzles
-3. **Still far from TRM**: 71.4% vs 87.4% - the architecture gap (Transformer vs MLP-Mixer) remains the bottleneck
+3. **Still far from nano-trm**: 71.4% vs 87.4% - later experiments ruled out architecture as the bottleneck
 4. **Hard puzzles benefit most**: Rating 51+ jumps from 57.5% to 71.3% (+14pp)
 
 **This is now the new baseline** for sudoku-extreme experiments: 2.7M data, 70K steps, no_x_after_init architecture
@@ -848,7 +836,7 @@ Everything else identical: same looping, h_prev recurrence, pos embeddings, trai
 |-------|-------|----------|-----|------|-------|-----|
 | **MLP-Mixer** | **71.9%** | 99.1% | 86.6% | 53.3% | 56.9% | 63.4% |
 | Transformer | 71.4% | 98.7% | 83.1% | 60.0% | 65.7% | 71.3% |
-| TRM | 87.4% | - | - | - | - | - |
+| nano-trm | 87.4% | - | - | - | - | - |
 
 **Finding:** MLP-Mixer achieves **71.9%** vs Transformer's **71.4%** - essentially identical (+0.5pp).
 
@@ -1008,7 +996,7 @@ This confirms Key Insight #2: depth per iteration matters. With only 2 layers, t
 | 512 (baseline) | 800K | 71.4% | 71.3% |
 | 2048 | 800K | 73.7% | 67.8% |
 | 4096 | 800K | **76.3%** | **72.3%** |
-| TRM (ref) | 5M | 87.4% | - |
+| nano-trm (ref) | 5M | 87.4% | - |
 
 **Learning curve (BS=4096):**
 
@@ -1078,7 +1066,7 @@ Step 0K: 0% → 2K: 31% → 4K: 52% → 6K: 65% → 8K: 68.1% → 10K: 67.1% (dr
 
 **File:** `exp_trm_nested.py`
 
-**Hypothesis:** TRM (Tiny Recursive Models) achieves 87.4% on sudoku-extreme. They use a specific architecture with nested iteration loops (H_cycles × L_cycles) where outer loops run without gradients. Does adopting their architecture close the gap?
+**Hypothesis:** nano-trm achieves 87.4% on sudoku-extreme. They use a specific architecture with nested iteration loops (H_cycles × L_cycles) where outer loops run without gradients. Does adopting their architecture close the gap?
 
 **Setup:**
 - TRM-style MLP-T architecture (sequence-wise MLP instead of attention)
@@ -1091,7 +1079,7 @@ Step 0K: 0% → 2K: 31% → 4K: 52% → 6K: 65% → 8K: 68.1% → 10K: 67.1% (dr
 
 **Results:**
 
-| Rating | TRM Nested | Baseline (BS=4096) | TRM (reference) |
+| Rating | TRM Nested | Baseline (BS=4096) | nano-trm (ref) |
 |--------|------------|-------------------|-----------------|
 | 0 (easy) | 95.1% | 98.7% | - |
 | 1-2 | 73.7% | 83.1% | - |
@@ -1108,4 +1096,4 @@ The nested H_cycles/L_cycles structure with no-gradient outer loops appears to b
 2. **No-gradient warmup wasteful**: Running 2 full outer cycles without gradients may work when each "step" sees many augmented versions of the same puzzle, but wastes computation when each step sees fresh data.
 3. **MLP-T not inherently better**: Despite fixed Sudoku constraints favoring fixed mixing patterns, MLP-T doesn't outperform attention at this scale.
 
-**Conclusion:** TRM's architecture is NOT the source of their advantage. The gap must come from their data strategy (1K puzzles × 1000 digit relabelings) or training tricks (EMA). Next: test their exact recipe with `exp_trm_exact.py`.
+**Conclusion:** nano-trm's architecture is NOT the source of their advantage. Subsequent experiments with their exact recipe (exp_trm_exact.py) also failed (~14% accuracy due to massive overfitting). The gap likely comes from subtle training details: non-learned hidden state init with std=1.0, carry persisting across batches, or no-grad warmup cycles. See nano-trm analysis in Key Insight #20.
