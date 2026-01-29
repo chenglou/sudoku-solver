@@ -3,6 +3,8 @@
 Early experiments use 100k training steps on easiest difficulty puzzles (100k train, 1k test).
 Later experiments (curriculum, recurrence) use full 2.7M training set across all difficulties (2.5k test).
 
+**Training infrastructure:** Early experiments ran on RTX 4090 (~6h for 70K steps at BS=512). Later experiments (BS=4096, scale_wide, scale_up) ran on Modal H200 (~4h for 70K steps at BS=4096).
+
 ---
 
 ## Baseline: Iterative Transformer

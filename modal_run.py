@@ -27,7 +27,7 @@ image = (
 
 @app.function(
     image=image,
-    gpu="H100",
+    gpu="H200",
     cpu=8.0,  # more cores for data loading with mp.Pool
     timeout=24 * 60 * 60,  # 24 hours (max)
     volumes={

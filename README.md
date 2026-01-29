@@ -71,19 +71,30 @@ tensorboard --logdir runs/
 - `exp_scale_wide.py` - Width scaling experiment: 3.2M params, d=512 (74.8% on extreme)
 - `checkpoint_utils.py` - Checkpoint save/resume utilities (Modal preemption-safe)
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
+- `test_data.py` - Test data loader using test.csv (matches nano-trm for fair comparison)
 - `EXPERIMENTS.md` - Full experiment log and results
 - `modal_run.py` - (Optional) Modal wrapper for running experiments on Modal GPUs
 - `requirements-modal.txt` - Minimal deps for Modal (no local CUDA libraries)
 - `logs_to_tensorboard.py` - Convert experiment logs to TensorBoard format (post-hoc)
 - `tensorboard_utils.py` - Real-time TensorBoard logging utility for experiments
 
+## Test Data
+
+For fair comparison with nano-trm, use `test_data.py` which loads test.csv directly:
+
+```python
+from test_data import load_test_csv
+test_data = load_test_csv(max_per_bucket=5000, device=device)
+# Returns dict: {'0': {'x': tensor, 'puzzles': [...], 'solutions': [...]}, '1-2': {...}, ...}
+```
+
 ## Results (sudoku-extreme benchmark)
 
-| Model | Params | Batch Size | Accuracy |
-|-------|--------|------------|----------|
-| **exp_scale_batch_4k** | 800K | 4096 | **76.3%** |
-| exp_scale_wide | 3.2M | 512 | 74.8% |
-| exp_extreme_baseline | 800K | 512 | 71.4% |
-| [nano-trm](https://github.com/olivkoch/nano-trm) (reference) | 5M | 256 | 87.4% |
+| Model | Params | Batch Size | GPU | Time | Accuracy |
+|-------|--------|------------|-----|------|----------|
+| **exp_scale_batch_4k** | 800K | 4096 | H200 | ~4h | **76.3%** |
+| exp_scale_wide | 3.2M | 512 | H200 | ~6h | 74.8% |
+| exp_extreme_baseline | 800K | 512 | RTX 4090 | ~6h | 71.4% |
+| [nano-trm](https://github.com/olivkoch/nano-trm) (reference) | 5M | 256 | - | - | 87.4% |
 
 See [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis and ablations.
