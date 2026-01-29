@@ -92,7 +92,8 @@ test_data = load_test_csv(max_per_bucket=5000, device=device)
 
 | Model | Params | Batch Size | GPU | Time | Accuracy |
 |-------|--------|------------|-----|------|----------|
-| **exp_scale_batch_4k** | 800K | 4096 | H200 | ~4h | **76.3%** |
+| **exp_warmup** | 800K | 4096 | H200 | ~4h | **78.5%** |
+| exp_scale_batch_4k | 800K | 4096 | H200 | ~4h | 76.3% |
 | exp_scale_wide | 3.2M | 512 | H200 | ~6h | 74.8% |
 | exp_extreme_baseline | 800K | 512 | RTX 4090 | ~6h | 71.4% |
 | [nano-trm](https://github.com/olivkoch/nano-trm) (reference) | 5M | 256 | - | - | 87.4% |

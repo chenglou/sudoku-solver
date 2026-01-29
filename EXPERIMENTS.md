@@ -361,6 +361,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | Scale UP (5M params) | 25k extreme | 69.7% | More params ≠ better |
 | **BS=4096** | 25k extreme | **76.3%** | Batch scaling most efficient |
 | TRM Nested (4.5M) | 25k extreme | 60.3% | TRM architecture hurts! |
+| **LR Warmup** | 25k extreme | **78.5%** | +2.2pp from 2K-step warmup |
 
 ---
 
@@ -404,7 +405,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 
 19. **Training data domain matters more than quantity** - Training on 400K sudoku-extreme puzzles achieves 63.4% on sudoku-extreme test, vs 31.7% from 2.7M Kaggle puzzles (+32pp with 7x less data). However, the Kaggle-trained model still wins on Kaggle test (89.9% vs 81.3%). Models specialize to their training domain rather than learning universal sudoku solving.
 
-20. **Model size is NOT the bottleneck** - Scaling from 800K to 5M params (matching nano-trm) actually made results worse (69.7% vs 71.4%). Combined with the MLP-Mixer result (71.9% ≈ 71.4%), we've ruled out both architecture type and model size as explanations for nano-trm's 87.4% advantage. Data augmentation (digit relabeling) was tested and didn't help. Currently investigating: LR warmup, EMA, non-learned hidden state init (std=1.0), cosine LR decay, carry across batches.
+20. **Model size is NOT the bottleneck** - Scaling from 800K to 5M params (matching nano-trm) actually made results worse (69.7% vs 71.4%). Combined with the MLP-Mixer result (71.9% ≈ 71.4%), we've ruled out both architecture type and model size as explanations for nano-trm's 87.4% advantage. Data augmentation (digit relabeling) was tested and didn't help. **LR warmup helps +2.2pp** (76.3% → 78.5%). Still investigating: EMA, cosine LR decay, non-learned hidden state init (std=1.0), carry across batches, no-grad warmup cycles.
 
 ---
 
@@ -1097,3 +1098,46 @@ The nested H_cycles/L_cycles structure with no-gradient outer loops appears to b
 3. **MLP-T not inherently better**: Despite fixed Sudoku constraints favoring fixed mixing patterns, MLP-T doesn't outperform attention at this scale.
 
 **Conclusion:** nano-trm's architecture is NOT the source of their advantage. Subsequent experiments with their exact recipe (exp_trm_exact.py) also failed (~14% accuracy due to massive overfitting). The gap likely comes from subtle training details: non-learned hidden state init with std=1.0, carry persisting across batches, or no-grad warmup cycles. See nano-trm analysis in Key Insight #20.
+
+---
+
+## Experiment: LR Warmup
+
+**File:** `exp_warmup.py`
+
+**Hypothesis:** nano-trm uses 2000-step linear LR warmup. Large batch training can have unstable early gradients - does warmup help?
+
+**Setup:**
+- Same as BS=4096 baseline
+- Added 2000-step linear LR warmup (0 → 1.5e-3)
+- 70K steps on H200
+
+**Results:**
+
+| Metric | With Warmup | Baseline (no warmup) |
+|--------|-------------|----------------------|
+| Rating 0 | 99.6% | 98.7% |
+| Rating 1-2 | 90.2% | 83.1% |
+| Rating 3-10 | 62.3% | 60.0% |
+| Rating 11-50 | 66.2% | 65.7% |
+| Rating 51+ | 74.0% | 72.3% |
+| **Total** | **78.5%** | **76.3%** |
+
+**Learning curve comparison:**
+
+| Step | With Warmup | Baseline | Delta |
+|------|-------------|----------|-------|
+| 5K | 57.1% | 54.9% | +2.2pp |
+| 10K | 66.4% | 64.1% | +2.3pp |
+| 25K | 70.9% | 70.2% | +0.7pp |
+| 50K | 76.9% | 75.4% | +1.5pp |
+| 70K | **78.5%** | 76.3% | **+2.2pp** |
+
+**Finding:** LR warmup gives a solid **+2.2pp improvement** (76.3% → 78.5%). The benefit is most visible early (helps early training stability) and persists to the end. Gap to nano-trm reduced from 11.1pp to 8.9pp.
+
+**Remaining gap with nano-trm:**
+- Baseline (no warmup): 76.3% → 11.1pp gap
+- **With warmup: 78.5% → 8.9pp gap**
+- nano-trm: 87.4%
+
+Still need to test: EMA, cosine LR decay, non-learned hidden state init (std=1.0), carry across batches, no-grad warmup cycles.
