@@ -362,6 +362,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | **BS=4096** | 25k extreme | **76.3%** | Batch scaling most efficient |
 | TRM Nested (4.5M) | 25k extreme | 60.3% | TRM architecture hurts! |
 | **LR Warmup** | 25k extreme | **78.5%** | +2.2pp from 2K-step warmup |
+| Fixed Random Init | 25k extreme | 77.5% | -1.0pp vs warmup, doesn't help |
 
 ---
 
@@ -405,7 +406,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 
 19. **Training data domain matters more than quantity** - Training on 400K sudoku-extreme puzzles achieves 63.4% on sudoku-extreme test, vs 31.7% from 2.7M Kaggle puzzles (+32pp with 7x less data). However, the Kaggle-trained model still wins on Kaggle test (89.9% vs 81.3%). Models specialize to their training domain rather than learning universal sudoku solving.
 
-20. **Model size is NOT the bottleneck** - Scaling from 800K to 5M params (matching nano-trm) actually made results worse (69.7% vs 71.4%). Combined with the MLP-Mixer result (71.9% ≈ 71.4%), we've ruled out both architecture type and model size as explanations for nano-trm's 87.4% advantage. Data augmentation (digit relabeling) was tested and didn't help. **LR warmup helps +2.2pp** (76.3% → 78.5%). Still investigating: EMA, cosine LR decay, non-learned hidden state init (std=1.0), carry across batches, no-grad warmup cycles.
+20. **Model size is NOT the bottleneck** - Scaling from 800K to 5M params (matching nano-trm) actually made results worse (69.7% vs 71.4%). Combined with the MLP-Mixer result (71.9% ≈ 71.4%), we've ruled out both architecture type and model size as explanations for nano-trm's 87.4% advantage. Data augmentation (digit relabeling) was tested and didn't help. **LR warmup helps +2.2pp** (76.3% → 78.5%). Fixed random hidden state init (nano-trm style) **hurt by 1.0pp** - our learned initial_encoder is better. Still investigating: EMA, cosine LR decay, carry across batches, no-grad warmup cycles.
 
 ---
 
@@ -1140,4 +1141,59 @@ The nested H_cycles/L_cycles structure with no-gradient outer loops appears to b
 - **With warmup: 78.5% → 8.9pp gap**
 - nano-trm: 87.4%
 
-Still need to test: EMA, cosine LR decay, non-learned hidden state init (std=1.0), carry across batches, no-grad warmup cycles.
+Still need to test: EMA, cosine LR decay, carry across batches, no-grad warmup cycles.
+
+---
+
+## Experiment: Fixed Random Hidden State Init
+
+**File:** `exp_fixed_init.py`
+
+**Hypothesis:** nano-trm initializes hidden states (z_H, z_L) as fixed random buffers with std=1.0, not learned parameters. Does using a fixed random init instead of our learned `initial_encoder(x)` help?
+
+**Setup:**
+- Based on warmup baseline (78.5%)
+- Replaced `self.initial_encoder = nn.Linear(10, d_model)` with `nn.Buffer` initialized with std=1.0
+- Added `puzzle_proj(x)` inside the loop to feed puzzle info (since h_init no longer encodes it)
+- 70K steps on H200
+
+**Architecture change:**
+```python
+# Before (learned, puzzle-dependent):
+self.initial_encoder = nn.Linear(10, d_model)
+h_prev = self.initial_encoder(x)
+
+# After (fixed random, same for all puzzles):
+self.register_buffer('h_init', torch.randn(1, 81, d_model) * 1.0)
+h_prev = self.h_init.expand(batch_size, -1, -1)
+puzzle_embed = self.puzzle_proj(x)  # Added inside loop
+```
+
+**Results:**
+
+| Metric | Fixed Init | Warmup Baseline |
+|--------|------------|-----------------|
+| Rating 0 | 99.6% | 99.6% |
+| Rating 1-2 | 88.8% | 90.2% |
+| Rating 3-10 | 60.9% | 62.3% |
+| Rating 11-50 | 64.6% | 66.2% |
+| Rating 51+ | 73.7% | 74.0% |
+| **Total** | **77.5%** | **78.5%** |
+
+**Learning curve:**
+
+| Step | Fixed Init | Warmup | Delta |
+|------|------------|--------|-------|
+| 10K | 65.2% | 66.4% | -1.2pp |
+| 50K | 76.6% | 76.9% | -0.3pp |
+| 55K | 76.9% | ~77% | ~0pp |
+| 70K | **77.5%** | **78.5%** | **-1.0pp** |
+
+**Finding:** Fixed random init **hurts** by 1.0pp (78.5% → 77.5%). Our learned `initial_encoder(x)` that encodes the puzzle into the initial hidden state is better than nano-trm's fixed random buffer approach.
+
+**Why it didn't help:**
+- nano-trm has TWO hidden states (z_H for solution, z_L for problem) that interact differently
+- Our single h_prev benefits from being puzzle-aware from the start
+- The fixed init forces the model to rely entirely on `puzzle_proj(x)` added each iteration, which may be less effective than encoding puzzle info once into h_prev
+
+**Conclusion:** This nano-trm technique does NOT transfer to our architecture. Crossed off the list.
