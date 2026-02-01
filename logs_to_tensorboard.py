@@ -14,18 +14,23 @@ LOG_FILES = [
     ("logs/exp_scale_batch_4k_curriculum.log", "bs4096_10k_regular"),
     ("logs/exp_scale_wide.log", "scale_wide"),
     ("logs/exp_scale_up_big_gpu.log", "scale_up"),
+    ("logs/exp_warmup.log", "warmup"),
+    ("logs/exp_cosine.log", "cosine"),  # NEW SOTA 84.0%
+    ("logs/exp_ema.log", "ema"),
 ]
 
 # Pattern for log lines with eval results
 # Step  5000 | Loss: 0.7533 Acc: 79.12% | 0: 4097/5000 | ... | Total: 13723/25000 (54.9%)
+# Also handles: Step     0 | LR: 7.50e-07 | Loss: 17.7026 Acc: 11.10% | ... | Total: 0/25000 (0.0%)
 EVAL_PATTERN = re.compile(
-    r"Step\s+(\d+)\s+\|\s+Loss:\s+([\d.]+)\s+Acc:\s+([\d.]+)%.*Total:\s+(\d+)/(\d+)\s+\(([\d.]+)%\)"
+    r"Step\s+(\d+)\s+\|.*Loss:\s+([\d.]+)\s+Acc:\s+([\d.]+)%.*Total:\s+(\d+)/(\d+)\s+\(([\d.]+)%\)"
 )
 
 # Pattern for regular training lines (no Total:)
 # Step  5100 | Loss: 0.7234 Acc: 78.45%
+# Also handles: Step   100 | LR: 7.57e-05 | Loss: 5.1433 Acc: 11.26%
 TRAIN_PATTERN = re.compile(
-    r"Step\s+(\d+)\s+\|\s+Loss:\s+([\d.]+)\s+Acc:\s+([\d.]+)%"
+    r"Step\s+(\d+)\s+\|.*Loss:\s+([\d.]+)\s+Acc:\s+([\d.]+)%"
 )
 
 

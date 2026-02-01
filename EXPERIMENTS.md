@@ -363,6 +363,11 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | TRM Nested (4.5M) | 25k extreme | 60.3% | TRM architecture hurts! |
 | **LR Warmup** | 25k extreme | **78.5%** | +2.2pp from 2K-step warmup |
 | Fixed Random Init | 25k extreme | 77.5% | -1.0pp vs warmup, doesn't help |
+| Carry Across Batches | 25k extreme | diverged | Training explodes, doesn't work |
+| EMA (decay=0.999) | 25k extreme | 77.5% | -1.0pp vs warmup, doesn't help |
+| **Cosine LR Decay** | 25k extreme | **84.0%** | **NEW SOTA: +5.5pp from cosine decay** |
+| Cosine + Mixed | 25k extreme | 83.8% | Mixed nearly matches reverse with cosine |
+| Cosine + Regular | 25k extreme | 80.6% | Easy→hard still hurts (-3.4pp) |
 
 ---
 
@@ -406,7 +411,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 
 19. **Training data domain matters more than quantity** - Training on 400K sudoku-extreme puzzles achieves 63.4% on sudoku-extreme test, vs 31.7% from 2.7M Kaggle puzzles (+32pp with 7x less data). However, the Kaggle-trained model still wins on Kaggle test (89.9% vs 81.3%). Models specialize to their training domain rather than learning universal sudoku solving.
 
-20. **Model size is NOT the bottleneck** - Scaling from 800K to 5M params (matching nano-trm) actually made results worse (69.7% vs 71.4%). Combined with the MLP-Mixer result (71.9% ≈ 71.4%), we've ruled out both architecture type and model size as explanations for nano-trm's 87.4% advantage. Data augmentation (digit relabeling) was tested and didn't help. **LR warmup helps +2.2pp** (76.3% → 78.5%). Fixed random hidden state init (nano-trm style) **hurt by 1.0pp** - our learned initial_encoder is better. Still investigating: EMA, cosine LR decay, carry across batches, no-grad warmup cycles.
+20. **Cosine LR decay is the key technique** - After ruling out architecture (MLP-Mixer ≈ Transformer), model size (5M params hurts), fixed random init (-1.0pp), and carry across batches (diverged), we found that **cosine LR decay** is the critical technique. With warmup (78.5%) + cosine decay to 1% of peak LR, we achieve **84.0%** (+5.5pp). EMA (decay=0.999) **didn't help** (-1.0pp vs warmup). The cosine schedule allows the model to refine learned features in late training rather than continuing to jump around. Remaining gap to nano-trm (87.4%) reduced from 8.9pp to 3.4pp.
 
 ---
 
@@ -1197,3 +1202,207 @@ puzzle_embed = self.puzzle_proj(x)  # Added inside loop
 - The fixed init forces the model to rely entirely on `puzzle_proj(x)` added each iteration, which may be less effective than encoding puzzle info once into h_prev
 
 **Conclusion:** This nano-trm technique does NOT transfer to our architecture. Crossed off the list.
+
+---
+
+## Experiment: Carry Hidden State Across Batches
+
+**File:** `exp_carry.py`
+
+**Hypothesis:** nano-trm keeps the same puzzle in a batch slot until solved, carrying hidden state forward. This lets the model "think longer" on hard puzzles. Does this help our architecture?
+
+**Setup:**
+- Based on warmup baseline (78.5%)
+- Persistent slot system: each batch slot holds a puzzle until solved, then replaced
+- Hidden state (h_prev) and predictions carry forward for unsolved puzzles
+- 70K steps on H200
+
+**Results:** Training diverged catastrophically. Loss exploded to millions by step 20K, accuracy stuck at 11% (random), zero puzzles solved.
+
+**Finding:** Carry across batches **completely breaks** our architecture. The hidden state accumulation causes training instability. This technique does NOT transfer from nano-trm.
+
+**Why it failed:**
+- nano-trm has different architecture (two-state z_H/z_L system)
+- Their "iterations" within a step work differently
+- Our single h_prev may accumulate in ways that destabilize gradients
+- The carry mechanism may need their specific normalization or gating
+
+**Conclusion:** Crossed off the list. Will test EMA and cosine LR decay independently.
+
+---
+
+## Experiment: EMA (Exponential Moving Average)
+
+**File:** `exp_ema.py`
+
+**Hypothesis:** nano-trm uses EMA with decay=0.999 for evaluation. Does maintaining shadow weights that average over training improve generalization?
+
+**Setup:**
+- Based on warmup baseline (78.5%)
+- Added EMA class that maintains shadow weights updated after each step: `shadow = decay * shadow + (1-decay) * params`
+- Evaluation uses EMA weights, training uses live weights
+- decay=0.999 (same as nano-trm)
+- 70K steps on H200
+
+**Implementation:**
+```python
+class EMA:
+    def __init__(self, model, decay=0.999):
+        self.decay = decay
+        self.shadow = {}
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                self.shadow[name] = param.data.clone()
+
+    @torch.no_grad()
+    def update(self, model):
+        for name, param in model.named_parameters():
+            if param.requires_grad and name in self.shadow:
+                self.shadow[name].mul_(self.decay).add_(param.data, alpha=1 - self.decay)
+```
+
+**Results:**
+
+| Metric | With EMA | Warmup Baseline |
+|--------|----------|-----------------|
+| Rating 0 | 99.5% | 99.6% |
+| Rating 1-2 | 89.6% | 90.2% |
+| Rating 3-10 | 61.6% | 62.3% |
+| Rating 11-50 | 64.8% | 66.2% |
+| Rating 51+ | 72.0% | 74.0% |
+| **Total** | **77.5%** | **78.5%** |
+
+**Finding:** EMA **hurts** by 1.0pp (78.5% → 77.5%). The shadow weights averaged over training are worse than the final live weights.
+
+**Why it didn't help:**
+- Our training with SAM already finds flat minima, reducing the need for weight averaging
+- EMA may average in older, less refined weights that hurt final performance
+- nano-trm may benefit from EMA due to their different training dynamics (carry across batches, nested loops)
+
+**Conclusion:** EMA does NOT help our architecture. Crossed off the list.
+
+---
+
+## Experiment: Cosine LR Decay (NEW SOTA)
+
+**File:** `exp_cosine.py`
+
+**Hypothesis:** nano-trm uses cosine LR decay after warmup. Does decaying to a small final LR help the model converge to a better solution?
+
+**Setup:**
+- Based on warmup baseline (78.5%)
+- After 2K-step linear warmup, LR decays following cosine schedule to 1% of peak
+- `lr = lr_peak * (lr_min_ratio + (1 - lr_min_ratio) * 0.5 * (1 + cos(π * progress)))`
+- lr_min_ratio = 0.01 (final LR = 1.5e-5)
+- 70K steps on H200
+
+**Implementation:**
+```python
+def get_lr(step):
+    if step < warmup_steps:
+        return lr * (step + 1) / warmup_steps
+    progress = (step - warmup_steps) / (total_steps - warmup_steps)
+    cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
+    return lr * (lr_min_ratio + (1 - lr_min_ratio) * cosine_decay)
+```
+
+**Results:**
+
+| Metric | Cosine LR | Warmup Baseline | Delta |
+|--------|-----------|-----------------|-------|
+| Rating 0 | 99.9% | 99.6% | +0.3pp |
+| Rating 1-2 | 94.4% | 90.2% | +4.2pp |
+| Rating 3-10 | 70.9% | 62.3% | +8.6pp |
+| Rating 11-50 | 74.9% | 66.2% | +8.7pp |
+| Rating 51+ | 80.0% | 74.0% | +6.0pp |
+| **Total** | **84.0%** | **78.5%** | **+5.5pp** |
+
+**Learning curve:**
+
+| Step | Cosine | Warmup | Delta |
+|------|--------|--------|-------|
+| 10K | 66.8% | 66.4% | +0.4pp |
+| 25K | 74.0% | 70.9% | +3.1pp |
+| 50K | 80.0% | 76.9% | +3.1pp |
+| 70K | **84.0%** | **78.5%** | **+5.5pp** |
+
+**Finding:** Cosine LR decay gives a massive **+5.5pp improvement** (78.5% → 84.0%). This is the single largest improvement we've found, making it the **NEW SOTA**.
+
+**Why cosine helps:**
+1. **Late-stage refinement**: As LR decays, the model makes smaller updates, allowing it to fine-tune features without jumping over good solutions
+2. **Smooth decay**: Cosine is smoother than step decay, avoiding sudden drops that could destabilize training
+3. **Never-zero LR**: The 1% minimum ensures continued learning even at the end
+4. **Complements warmup**: Warmup stabilizes early training, cosine refines late training
+
+**Remaining gap with nano-trm:**
+- Warmup only: 78.5% → 8.9pp gap
+- **Cosine LR: 84.0% → 3.4pp gap**
+- nano-trm: 87.4%
+
+**Conclusion:** Cosine LR decay is the key technique for closing the gap with nano-trm. The remaining 3.4pp gap may come from their data augmentation (1000 digit relabelings per puzzle) or other subtle differences.
+
+---
+
+## Experiment: Cosine LR + Mixed Sampling
+
+**File:** `exp_cosine_mixed.py`
+
+**Hypothesis:** The original cosine experiment uses reverse curriculum (hard→easy). Does cosine LR work just as well with mixed sampling (all difficulties from start)?
+
+**Setup:**
+- Same as exp_cosine (84.0% SOTA) but with mixed sampling instead of reverse curriculum
+- No phases - sample from all 2.7M puzzles throughout training
+- 70K steps on H200
+
+**Results:**
+
+| Metric | Mixed | Reverse (SOTA) | Delta |
+|--------|-------|----------------|-------|
+| Rating 0 | 100.0% | 99.9% | +0.1pp |
+| Rating 1-2 | 96.0% | 94.4% | +1.6pp |
+| Rating 3-10 | 71.2% | 70.9% | +0.3pp |
+| Rating 11-50 | 70.8% | 74.9% | -4.1pp |
+| Rating 51+ | 81.0% | 80.0% | +1.0pp |
+| **Total** | **83.8%** | **84.0%** | **-0.2pp** |
+
+**Finding:** Mixed sampling nearly matches reverse curriculum with cosine LR (-0.2pp). Before cosine, mixed was -2.6pp behind reverse. Cosine decay appears to reduce the importance of curriculum design.
+
+**Why mixed nearly matches now:**
+- Cosine's gradual LR decay provides implicit curriculum - early high-LR learns coarse features, late low-LR refines
+- The explicit hard→easy ordering becomes less important when the LR schedule already provides structure
+
+---
+
+## Experiment: Cosine LR + Regular Curriculum
+
+**File:** `exp_cosine_regular.py`
+
+**Hypothesis:** Does traditional curriculum (easy→hard) work with cosine LR?
+
+**Setup:**
+- Same as exp_cosine but with regular curriculum: easy→hard phases
+- Phase 1: rating ≤2, Phase 2: ≤10, Phase 3: ≤50, Phase 4: all
+- 70K steps on H200
+
+**Results:**
+
+| Metric | Regular | Reverse (SOTA) | Delta |
+|--------|---------|----------------|-------|
+| Rating 0 | 100.0% | 99.9% | +0.1pp |
+| Rating 1-2 | 95.2% | 94.4% | +0.8pp |
+| Rating 3-10 | 66.2% | 70.9% | -4.7pp |
+| Rating 11-50 | 66.3% | 74.9% | -8.6pp |
+| Rating 51+ | 75.5% | 80.0% | -4.5pp |
+| **Total** | **80.6%** | **84.0%** | **-3.4pp** |
+
+**Finding:** Regular curriculum (easy→hard) still hurts significantly (-3.4pp) even with cosine LR. The pattern from pre-cosine experiments holds: easy puzzles teach shortcuts that don't generalize to hard puzzles.
+
+**Curriculum comparison with cosine:**
+
+| Curriculum | Result | vs Reverse |
+|------------|--------|------------|
+| Reverse (hard→easy) | 84.0% | baseline |
+| Mixed (no curriculum) | 83.8% | -0.2pp |
+| Regular (easy→hard) | 80.6% | -3.4pp |
+
+**Conclusion:** Even with cosine LR, curriculum order matters. Reverse still wins, but mixed is now nearly as good. Regular curriculum remains harmful.

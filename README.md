@@ -64,7 +64,8 @@ tensorboard --logdir runs/
 
 ## Key Files
 
-- `exp_scale_batch_4k.py` - **Current baseline**: 800K params, BS=4096, 70K steps (76.3% on extreme)
+- `exp_cosine.py` - **Current SOTA**: 800K params, BS=4096, cosine LR decay (84.0% on extreme)
+- `exp_scale_batch_4k.py` - Baseline: 800K params, BS=4096, 70K steps (76.3% on extreme)
 - `exp_scale_batch.py` - Previous baseline: 800K params, BS=2048, 70K steps (73.7% on extreme)
 - `exp_scale_batch_4k_v2.py` - Reverse curriculum with scaled phases: BS=4096, 10K steps (70.5%)
 - `exp_scale_batch_4k_curriculum.py` - Regular curriculum (easy→hard): BS=4096, 10K steps (67.1%)
@@ -92,7 +93,7 @@ test_data = load_test_csv(max_per_bucket=5000, device=device)
 
 | Model | Params | Batch Size | GPU | Time | Accuracy |
 |-------|--------|------------|-----|------|----------|
-| **exp_warmup** | 800K | 4096 | H200 | ~4h | **78.5%** |
+| **exp_cosine** | 800K | 4096 | H200 | ~4h | **84.0%** |
 | exp_scale_batch_4k | 800K | 4096 | H200 | ~4h | 76.3% |
 | exp_scale_wide | 3.2M | 512 | H200 | ~6h | 74.8% |
 | exp_extreme_baseline | 800K | 512 | RTX 4090 | ~6h | 71.4% |
