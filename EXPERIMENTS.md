@@ -243,6 +243,8 @@ Also added bf16 mixed precision + TF32 for ~2.4x speedup.
 
 **Why it works:** SAM prevents the optimizer from settling into sharp minima by penalizing regions where small weight perturbations spike the loss. This gives large-batch training the generalization benefits of small-batch noise, without sacrificing throughput.
 
+**Update (post-cosine):** With cosine LR decay, SAM's benefit drops from +6pp to just **+0.4pp** (84.0% → 83.6%). Cosine decay provides similar flat-minima benefits, making SAM largely redundant. See "Experiment: Cosine LR Without SAM" for details.
+
 ---
 
 ## Experiment: Mixed Difficulty Training
@@ -365,9 +367,10 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | Fixed Random Init | 25k extreme | 77.5% | -1.0pp vs warmup, doesn't help |
 | Carry Across Batches | 25k extreme | diverged | Training explodes, doesn't work |
 | EMA (decay=0.999) | 25k extreme | 77.5% | -1.0pp vs warmup, doesn't help |
-| **Cosine LR Decay** | 25k extreme | **84.0%** | **NEW SOTA: +5.5pp from cosine decay** |
+| Cosine LR Decay | 25k extreme | 84.0% | +5.5pp from cosine decay |
 | Cosine + Mixed | 25k extreme | 83.8% | Mixed nearly matches reverse with cosine |
 | Cosine + Regular | 25k extreme | 80.6% | Easy→hard still hurts (-3.4pp) |
+| **Cosine - SAM** | 25k extreme | **83.6%** | **Recommended: 2x faster, -0.4pp** |
 
 ---
 
@@ -1406,3 +1409,44 @@ def get_lr(step):
 | Regular (easy→hard) | 80.6% | -3.4pp |
 
 **Conclusion:** Even with cosine LR, curriculum order matters. Reverse still wins, but mixed is now nearly as good. Regular curriculum remains harmful.
+
+---
+
+## Experiment: Cosine LR Without SAM (NEW RECOMMENDED BASELINE)
+
+**File:** `exp_cosine_no_sam.py`
+
+**Hypothesis:** SAM and cosine LR both help find flat minima. With cosine decay, is SAM still needed?
+
+**Setup:**
+- Same as exp_cosine (84.0%) but with plain AdamW instead of SAM
+- Removes the two-step SAM procedure (first_step/second_step)
+- **2x faster training** (one forward-backward per step instead of two)
+- 70K steps on H200
+
+**Results:**
+
+| Metric | No SAM | With SAM | Delta |
+|--------|--------|----------|-------|
+| Rating 0 | 99.8% | 99.9% | -0.1pp |
+| Rating 1-2 | 94.3% | 94.4% | -0.1pp |
+| Rating 3-10 | 70.0% | 70.9% | -0.9pp |
+| Rating 11-50 | 71.8% | 74.9% | -3.1pp |
+| Rating 51+ | 81.9% | 80.0% | +1.9pp |
+| **Total** | **83.6%** | **84.0%** | **-0.4pp** |
+
+**Finding:** SAM only contributes **0.4pp** with cosine LR decay. This is dramatically less than pre-cosine where SAM gave +6pp.
+
+**Why SAM became redundant:**
+- Cosine LR decay provides similar benefits to SAM: gradual refinement in late training helps find flat minima
+- Both techniques prevent the optimizer from jumping around in late training
+- With cosine doing this job, SAM's sharpness-aware perturbations add little
+
+**Trade-off:** 0.4pp accuracy vs 2x training speed. For most purposes, **cosine without SAM is the recommended baseline**:
+- 83.6% accuracy (vs 84.0% with SAM)
+- ~2h training time (vs ~4h with SAM)
+- Simpler code (no SAM class needed)
+
+**Historical context:**
+- Pre-cosine: SAM critical (+6pp), overhead justified
+- Post-cosine: SAM marginal (+0.4pp), overhead not justified

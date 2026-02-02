@@ -64,8 +64,9 @@ tensorboard --logdir runs/
 
 ## Key Files
 
-- `exp_cosine.py` - **Current SOTA**: 800K params, BS=4096, cosine LR decay (84.0% on extreme)
-- `exp_scale_batch_4k.py` - Baseline: 800K params, BS=4096, 70K steps (76.3% on extreme)
+- `exp_cosine_no_sam.py` - **Recommended**: 800K params, BS=4096, cosine LR, no SAM (83.6%, 2x faster)
+- `exp_cosine.py` - Highest accuracy: 800K params, BS=4096, cosine LR + SAM (84.0%)
+- `exp_scale_batch_4k.py` - Pre-cosine baseline: 800K params, BS=4096, 70K steps (76.3%)
 - `exp_scale_batch.py` - Previous baseline: 800K params, BS=2048, 70K steps (73.7% on extreme)
 - `exp_scale_batch_4k_v2.py` - Reverse curriculum with scaled phases: BS=4096, 10K steps (70.5%)
 - `exp_scale_batch_4k_curriculum.py` - Regular curriculum (easy→hard): BS=4096, 10K steps (67.1%)
@@ -93,10 +94,12 @@ test_data = load_test_csv(max_per_bucket=5000, device=device)
 
 | Model | Params | Batch Size | GPU | Time | Accuracy |
 |-------|--------|------------|-----|------|----------|
-| **exp_cosine** | 800K | 4096 | H200 | ~4h | **84.0%** |
-| exp_scale_batch_4k | 800K | 4096 | H200 | ~4h | 76.3% |
+| **exp_cosine_no_sam** | 800K | 4096 | H200 | ~2h | **83.6%** |
+| exp_cosine | 800K | 4096 | H200 | ~4h | 84.0% |
 | exp_scale_wide | 3.2M | 512 | H200 | ~6h | 74.8% |
 | exp_extreme_baseline | 800K | 512 | RTX 4090 | ~6h | 71.4% |
 | [nano-trm](https://github.com/olivkoch/nano-trm) (reference) | 5M | 256 | - | - | 87.4% |
+
+**Note:** exp_cosine_no_sam is recommended as the default. SAM adds only +0.4pp but doubles training time.
 
 See [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis and ablations.
