@@ -1485,3 +1485,137 @@ def get_lr(step):
 - Cheap to compute (just addition), so no reason to remove it
 
 **Conclusion:** Keep pos_embed every iteration. The 0.8pp gain is free.
+
+---
+
+## Experiment: High Weight Decay (nano-trm style)
+
+**File:** `exp_cosine_wd.py`
+
+**Hypothesis:** nano-trm uses weight_decay=1.0, we use 0.01 (AdamW default). Does 100x higher weight decay help?
+
+**Setup:**
+- Same as exp_cosine_no_sam (83.6%) but with weight_decay=1.0
+- 70K steps on H200
+
+**Results:**
+
+| Metric | WD=1.0 | WD=0.01 (SOTA) | Delta |
+|--------|--------|----------------|-------|
+| Rating 0 | 99.6% | 99.8% | -0.2pp |
+| Rating 1-2 | 80.8% | 94.3% | -13.5pp |
+| Rating 3-10 | 49.8% | 70.0% | -20.2pp |
+| Rating 11-50 | 53.3% | 71.8% | -18.5pp |
+| Rating 51+ | 64.8% | 81.9% | -17.1pp |
+| **Total** | **70.1%** | **83.6%** | **-13.5pp** |
+
+**Finding:** Weight decay 1.0 completely kills performance (-13.5pp). nano-trm must have a different setup (different architecture, different optimizer, or their high WD interacts with other techniques we don't have).
+
+**Why it failed:**
+- Our model has 800K params vs nano-trm's 5M - less capacity to spare
+- High WD aggressively shrinks weights toward zero
+- With cosine LR already providing regularization, extra WD is overkill
+- nano-trm may compensate with something else (e.g., higher base LR, different architecture)
+
+**Conclusion:** Keep weight_decay=0.01. Higher values hurt significantly.
+
+---
+
+## Experiment: GELU Activation
+
+**File:** `exp_cosine_gelu.py`
+
+**Hypothesis:** Modern transformers use GELU instead of ReLU. Does it help?
+
+**Setup:**
+- Same as exp_cosine_no_sam (83.6%) but with activation="gelu"
+- 70K steps on H200
+
+**Results:**
+
+| Metric | GELU | ReLU (SOTA) | Delta |
+|--------|------|-------------|-------|
+| Rating 0 | 100.0% | 99.8% | +0.2pp |
+| Rating 1-2 | 94.8% | 94.3% | +0.5pp |
+| Rating 3-10 | 70.1% | 70.0% | +0.1pp |
+| Rating 11-50 | 70.6% | 71.8% | -1.2pp |
+| Rating 51+ | 80.4% | 81.9% | -1.5pp |
+| **Total** | **83.2%** | **83.6%** | **-0.4pp** |
+
+**Finding:** GELU slightly worse than ReLU (-0.4pp). The benefit of GELU in language models doesn't transfer to this task.
+
+**Why ReLU wins:**
+- Sudoku is a constraint satisfaction problem, not a language task
+- ReLU's hard zero may help with sparse activations (many cells are "not this digit")
+- GELU's smooth non-linearity provides no benefit here
+
+**Conclusion:** Keep ReLU activation.
+
+---
+
+## Experiment: ReLU Squared Activation
+
+**File:** `exp_cosine_relu2.py`
+
+**Hypothesis:** ReLU² (x → max(0,x)²) has shown benefits in some architectures (Primer paper). Does it help?
+
+**Setup:**
+- Same as exp_cosine_no_sam (83.6%) but with custom relu_squared activation
+- 70K steps on H200
+
+**Results:**
+
+| Metric | ReLU² | ReLU (SOTA) | Delta |
+|--------|-------|-------------|-------|
+| Rating 0 | 99.9% | 99.8% | +0.1pp |
+| Rating 1-2 | 93.3% | 94.3% | -1.0pp |
+| Rating 3-10 | 68.2% | 70.0% | -1.8pp |
+| Rating 11-50 | 69.0% | 71.8% | -2.8pp |
+| Rating 51+ | 79.2% | 81.9% | -2.7pp |
+| **Total** | **81.9%** | **83.6%** | **-1.7pp** |
+
+**Finding:** ReLU² hurts by 1.7pp. The squaring operation doesn't help for this task.
+
+**Why it failed:**
+- ReLU² amplifies large activations (x² grows fast)
+- May cause gradient issues or make optimization harder
+- Primer's benefits were for language modeling, not constraint satisfaction
+
+**Conclusion:** Keep standard ReLU.
+
+---
+
+## Experiment: Longer Training (140K steps)
+
+**File:** `exp_cosine_140k.py`
+
+**Hypothesis:** Does doubling training steps (70K → 140K) improve results? Maybe our model needs more time to converge.
+
+**Setup:**
+- Same as exp_cosine_no_sam but 140K steps instead of 70K
+- Curriculum phases scaled 2x (each phase runs 28K steps instead of 14K)
+- Cosine LR decays more slowly (reaches minimum at 140K instead of 70K)
+- Ran on H200, timed out at 95K steps (24h limit)
+
+**Results (at step 95K, incomplete):**
+
+| Step | LR | Total Accuracy |
+|------|-----|----------------|
+| 70K baseline | 1.5e-5 (min) | 83.6% |
+| 85K (140K run) | 5.25e-4 | 81.6% |
+| 90K (140K run) | 4.46e-4 | 82.4% |
+| 95K (140K run) | 3.72e-4 | 82.4% |
+
+**Finding:** At 95K steps (68% through), the 140K run is at 82.4% - **worse than 70K baseline's 83.6%**. The slower LR decay means the model hasn't entered the "refinement" phase yet (LR still at 25% of peak).
+
+**Why longer training didn't help:**
+
+1. **LR schedule mismatch**: At step 70K in the 70K schedule, LR is at minimum (1.5e-5), enabling fine refinement. At step 95K in the 140K schedule, LR is still 3.7e-4 (25x higher), so the model is still in "learning" mode, not "refining" mode.
+
+2. **Diminishing returns**: The 70K schedule already reaches low LR and allows convergence. Stretching this out doesn't help - it just takes longer to get to the same place.
+
+3. **Curriculum timing**: With phases 2x longer, the model spends more time on each difficulty level, but this doesn't translate to better final performance.
+
+4. **Implicit regularization**: Shorter training with faster LR decay may actually help generalization by preventing overfitting.
+
+**Conclusion:** 70K steps with cosine LR is sufficient. Longer training doesn't help and may actually hurt due to slower LR decay. The key is reaching low LR for refinement, not more steps at high LR.
