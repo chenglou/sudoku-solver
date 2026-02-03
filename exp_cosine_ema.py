@@ -219,10 +219,10 @@ def train(output_dir="."):
         start_step = checkpoint_data['step']
         print(f"Loaded model weights from step {start_step}")
 
-    # Initialize EMA before compile
-    ema = EMA(model, decay=ema_decay)
-
     model = torch.compile(model)
+
+    # Initialize EMA after compile (parameter names change with compile)
+    ema = EMA(model, decay=ema_decay)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, betas=(0.9, 0.95))
 

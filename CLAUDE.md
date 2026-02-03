@@ -10,3 +10,9 @@ For training on Modal:
 - Volumes persist indefinitely (no auto-eviction)
 - Local output stream can die while Modal worker continues. Check `modal container list` and `modal volume ls` for true status
 - Keep training code Modal-agnostic: pass `output_dir` param, Modal wrapper sets it to volume path
+
+For torch.compile:
+
+- `torch.compile(model)` changes parameter names: `foo.weight` → `_orig_mod.foo.weight`
+- Any code that iterates `model.named_parameters()` (EMA, custom optimizers, weight manipulation) must be initialized AFTER `torch.compile()`, not before
+- When saving checkpoints, strip the prefix: `k.replace('_orig_mod.', ''): v for k, v in model.state_dict().items()`
