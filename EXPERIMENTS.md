@@ -1619,3 +1619,82 @@ def get_lr(step):
 4. **Implicit regularization**: Shorter training with faster LR decay may actually help generalization by preventing overfitting.
 
 **Conclusion:** 70K steps with cosine LR is sufficient. Longer training doesn't help and may actually hurt due to slower LR decay. The key is reaching low LR for refinement, not more steps at high LR.
+
+---
+
+## Experiment: Shorter Training (50K steps)
+
+**File:** `exp_cosine_50k.py`
+
+**Hypothesis:** If reaching low LR is the key (not total steps), can we get similar results with fewer steps and faster cosine decay?
+
+**Setup:**
+- 50K steps instead of 70K (30% fewer)
+- Scaled curriculum phases: 10K each instead of 14K
+- Scaled warmup: 1400 steps instead of 2000
+- Same cosine shape, just compressed
+- ~1.4h training time vs ~2h
+
+**Results:**
+
+| Metric | 50K | 70K (SOTA) | Delta |
+|--------|-----|------------|-------|
+| Rating 0 | 100.0% | 99.8% | +0.2pp |
+| Rating 1-2 | 93.9% | 94.3% | -0.4pp |
+| Rating 3-10 | 68.8% | 70.0% | -1.2pp |
+| Rating 11-50 | 70.3% | 71.8% | -1.5pp |
+| Rating 51+ | 80.9% | 81.9% | -1.0pp |
+| **Total** | **82.8%** | **83.6%** | **-0.8pp** |
+
+**Finding:** 50K steps achieves 82.8% - only **0.8pp below baseline** with **30% less training time**. This is pareto-optimal for fast iteration.
+
+**Why it works:**
+- The LR curve shape matters more than total steps
+- 50K still reaches minimum LR (1.5e-5) for refinement
+- Each curriculum phase still gets meaningful time (10K steps each)
+- The model converges to similar quality with compressed schedule
+
+**Trade-off:** 0.8pp accuracy vs 30% faster training. For rapid experimentation, 50K is excellent.
+
+**Conclusion:** 50K steps is pareto-optimal - best accuracy/time trade-off for fast iteration.
+
+---
+
+## Experiment: EMA on Cosine LR (Retest)
+
+**File:** `exp_cosine_ema.py`
+
+**Hypothesis:** We tested EMA on warmup baseline (hurt -1pp). Maybe EMA helps with cosine LR? TRM gets +7.5pp from EMA.
+
+**Setup:**
+- Same as exp_cosine_no_sam (83.6%) but with EMA (decay=0.999)
+- Evaluate using EMA shadow weights
+- Also compare EMA vs non-EMA weights at end
+- 70K steps on H200
+
+**Results:**
+
+| Metric | With EMA | Without EMA | Delta |
+|--------|----------|-------------|-------|
+| Rating 0 | 100.0% | 100.0% | 0pp |
+| Rating 1-2 | 94.5% | 94.5% | 0pp |
+| Rating 3-10 | 70.1% | 70.1% | 0pp |
+| Rating 11-50 | 70.7% | 70.6% | +0.1pp |
+| Rating 51+ | 82.9% | 82.9% | 0pp |
+| **Total** | **83.6%** | **83.6%** | **0pp** |
+
+**Finding:** EMA makes **zero difference** with cosine LR. Both EMA and non-EMA weights achieve identical 83.6%.
+
+**Why EMA doesn't help:**
+- Cosine LR decay already provides "smooth" final weights by reducing LR to 1% at the end
+- EMA averages weights over training for stability - same goal as low LR
+- They're redundant techniques - both aim for stable final weights
+- TRM's +7.5pp from EMA was likely compensating for a different (worse?) LR schedule
+
+**Why EMA hurt on warmup baseline (-1pp):**
+- Without cosine decay, LR stays higher throughout
+- EMA averages over high-LR (noisy) updates
+- The shadow weights are worse than the final (still noisy) live weights
+- With cosine, both EMA and live weights are stable, so they're equal
+
+**Conclusion:** EMA is redundant with cosine LR decay. Skip it - saves code complexity with no benefit.
