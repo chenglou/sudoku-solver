@@ -320,7 +320,7 @@ def train(output_dir="."):
                     for b, (puzzle, solution) in enumerate(zip(puzzles[start:end], solutions[start:end])):
                         pred_solution = list(puzzle)
                         for i in range(81):
-                            if puzzle[i] == '.' or puzzle[i] == '0':
+                            if puzzle[i] == '.':
                                 pred_solution[i] = str(preds_full[b, i].item() + 1)
                         if ''.join(pred_solution) == solution:
                             puzzles_solved += 1

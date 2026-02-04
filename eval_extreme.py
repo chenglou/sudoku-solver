@@ -135,7 +135,7 @@ for start_idx in range(0, len(dataset), batch_size):
         # Build prediction string
         pred_solution = []
         for j in range(81):
-            if question[j] == '.' or question[j] == '0':
+            if question[j] == '.':
                 pred_solution.append(str(preds[i, j].item() + 1))
             else:
                 pred_solution.append(question[j])
