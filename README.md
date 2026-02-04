@@ -67,10 +67,6 @@ tensorboard --logdir runs/
 - `exp_cosine_no_sam.py` - **Recommended**: 800K params, BS=4096, cosine LR, no SAM (83.6%, ~2h)
 - `exp_cosine_50k.py` - **Fast iteration**: 800K params, BS=4096, 50K steps (82.8%, ~1.4h)
 - `exp_cosine.py` - Highest accuracy: 800K params, BS=4096, cosine LR + SAM (84.0%, ~4h)
-- `exp_scale_batch_4k.py` - Pre-cosine baseline: 800K params, BS=4096, 70K steps (76.3%)
-- `exp_scale_batch.py` - Previous baseline: 800K params, BS=2048, 70K steps (73.7% on extreme)
-- `exp_scale_batch_4k_v2.py` - Reverse curriculum with scaled phases: BS=4096, 10K steps (70.5%)
-- `exp_scale_batch_4k_curriculum.py` - Regular curriculum (easy→hard): BS=4096, 10K steps (67.1%)
 - `exp_scale_wide.py` - Width scaling experiment: 3.2M params, d=512 (74.8% on extreme)
 - `checkpoint_utils.py` - Checkpoint save/resume utilities (Modal preemption-safe)
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
@@ -99,7 +95,6 @@ test_data = load_test_csv(max_per_bucket=5000, device=device)
 | exp_cosine_50k | 800K | 4096 | H200 | ~1.4h | 82.8% |
 | exp_cosine | 800K | 4096 | H200 | ~4h | 84.0% |
 | exp_scale_wide | 3.2M | 512 | H200 | ~6h | 74.8% |
-| exp_extreme_baseline | 800K | 512 | RTX 4090 | ~6h | 71.4% |
 | [nano-trm](https://github.com/olivkoch/nano-trm) (reference) | 5M | 256 | - | - | 87.4% |
 
 **Note:** exp_cosine_no_sam is recommended as the default. exp_cosine_50k is pareto-optimal for fast iteration (-0.8pp, 30% faster).
