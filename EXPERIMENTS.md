@@ -1698,3 +1698,38 @@ def get_lr(step):
 - With cosine, both EMA and live weights are stable, so they're equal
 
 **Conclusion:** EMA is redundant with cosine LR decay. Skip it - saves code complexity with no benefit.
+
+---
+
+## Experiment: Batch Size 8192 (OOM)
+
+**File:** `exp_cosine_25k_bs8k.py`
+
+**Hypothesis:** Double batch size (8192 vs 4096) with half steps (25K vs 50K) should give same results faster, since GPU parallelism makes larger batches nearly free.
+
+**Setup:**
+- BS=8192 (doubled from 4096)
+- 25K steps (halved from 50K) - same total samples seen
+- Scaled curriculum and warmup proportionally
+- H200 GPU (140GB VRAM)
+
+**Result:** **OOM (Out of Memory)**
+
+```
+OutOfMemoryError: CUDA out of memory. Tried to allocate 648.00 MiB.
+GPU 0 has a total capacity of 139.80 GiB of which 491.25 MiB is free.
+```
+
+**Finding:** BS=8192 exceeds H200 memory with our model (800K params, 16 iterations, intermediate supervision). The 16 iterations with full gradient tracking require significant activation memory.
+
+**Why it failed:**
+- Each iteration stores activations for backward pass
+- 16 iterations × 8192 batch × 81 cells × d_model = large memory
+- H200's 140GB is not enough for BS=8192
+
+**Alternatives:**
+- Gradient accumulation: 2 × BS=4096 = effective BS=8192, fits in memory
+- Reduce iterations during training (but may hurt accuracy)
+- Checkpoint activations (slower but less memory)
+
+**Conclusion:** BS=4096 is near the memory limit for our architecture on H200. Use gradient accumulation for larger effective batch sizes.
