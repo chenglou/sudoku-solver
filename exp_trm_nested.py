@@ -209,7 +209,7 @@ def encode_puzzle(puzzle_str):
     """Convert puzzle string to tensor (0 for empty, 1-9 for digits)."""
     x = torch.zeros(81, dtype=torch.long)
     for i, c in enumerate(puzzle_str):
-        if c == '.' or c == '0':
+        if c == '.':
             x[i] = 0
         else:
             x[i] = int(c)
@@ -220,7 +220,7 @@ def get_targets(puzzle_str, solution_str):
     holes = []
     targets = []
     for i, (p, s) in enumerate(zip(puzzle_str, solution_str)):
-        if p == '.' or p == '0':
+        if p == '.':
             holes.append(i)
             targets.append(int(s) - 1)  # 0-indexed for cross entropy
     return torch.tensor(holes), torch.tensor(targets)

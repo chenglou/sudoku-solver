@@ -18,7 +18,7 @@ def encode_puzzle(puzzle_str):
     """Encode puzzle string to tensor."""
     x = torch.zeros(81, 10)
     for i, c in enumerate(puzzle_str):
-        if c == '.' or c == '0':
+        if c == '.':
             x[i, 0] = 1
         else:
             x[i, int(c)] = 1

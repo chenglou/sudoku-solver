@@ -173,7 +173,7 @@ class SudokuTransformer(nn.Module):
 def encode_puzzle(puzzle_str):
     x = torch.zeros(81, 10)
     for i, c in enumerate(puzzle_str):
-        if c == '.' or c == '0':
+        if c == '.':
             x[i, 0] = 1
         else:
             x[i, int(c)] = 1
@@ -184,7 +184,7 @@ def get_targets(puzzle_str, solution_str):
     holes = []
     targets = []
     for i, (p, s) in enumerate(zip(puzzle_str, solution_str)):
-        if p == '.' or p == '0':
+        if p == '.':
             holes.append(i)
             targets.append(int(s) - 1)
     return torch.tensor(holes), torch.tensor(targets)

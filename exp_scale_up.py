@@ -129,7 +129,7 @@ class SudokuTransformer(nn.Module):
 def encode_puzzle_np(puzzle_str):
     x = np.zeros((81, 10), dtype=np.float32)
     for i, c in enumerate(puzzle_str):
-        if c == '.' or c == '0':
+        if c == '.':
             x[i, 0] = 1
         else:
             x[i, int(c)] = 1
@@ -141,7 +141,7 @@ def encode_and_targets(args):
     holes = []
     targets = []
     for i, (p, s) in enumerate(zip(puzzle_str, solution_str)):
-        if p == '.' or p == '0':
+        if p == '.':
             holes.append(i)
             targets.append(int(s) - 1)
     return x, np.array(holes, dtype=np.int64), np.array(targets, dtype=np.int64)
