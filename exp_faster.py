@@ -9,7 +9,6 @@ from datasets import load_dataset
 import random
 import os
 import math
-import time
 import numpy as np
 from checkpoint_utils import find_latest_checkpoint, load_checkpoint
 
@@ -40,22 +39,9 @@ lr_min_ratio = 0.01
 total_steps = 50000
 batch_size = 4096
 train_size = 2700000
-train_size = int(os.environ.get("TRAIN_SIZE", train_size))
-if train_size < 1:
-    train_size = 1
-
-# Optional run controls (useful for profiling)
-max_steps = int(os.environ.get("MAX_STEPS", total_steps))
-if max_steps > total_steps:
-    max_steps = total_steps
-profile_every = int(os.environ.get("PROFILE_EVERY", "0"))
-eval_every = int(os.environ.get("EVAL_EVERY", "5000"))
-if eval_every <= 0:
-    eval_every = 0
-
-checkpoint_prefix = os.environ.get("CHECKPOINT_PREFIX", CHECKPOINT_PREFIX)
-skip_checkpoint = os.environ.get("SKIP_CHECKPOINT", "0") == "1"
-log_name = os.environ.get("LOG_NAME", "exp_faster.log")
+eval_every = 5000
+checkpoint_prefix = CHECKPOINT_PREFIX
+log_name = "exp_faster.log"
 
 # Same curriculum as 50K baseline
 PHASES = [
@@ -207,13 +193,12 @@ def train(output_dir="."):
 
     checkpoint_path, start_step = None, 0
     checkpoint_data = None
-    if not skip_checkpoint:
-        checkpoint_path, start_step = find_latest_checkpoint(output_dir, checkpoint_prefix)
-        if checkpoint_path:
-            print(f"Found checkpoint: {checkpoint_path}")
-            checkpoint_data = load_checkpoint(checkpoint_path, model, CONFIG)
-            start_step = checkpoint_data['step']
-            print(f"Loaded model weights from step {start_step}")
+    checkpoint_path, start_step = find_latest_checkpoint(output_dir, checkpoint_prefix)
+    if checkpoint_path:
+        print(f"Found checkpoint: {checkpoint_path}")
+        checkpoint_data = load_checkpoint(checkpoint_path, model, CONFIG)
+        start_step = checkpoint_data['step']
+        print(f"Loaded model weights from step {start_step}")
 
     model = torch.compile(model)
 
@@ -230,23 +215,8 @@ def train(output_dir="."):
     print(f"\nExperiment: Faster head_dim (d_model={d_model}, head_dim={d_model // n_heads})")
     print(f"Architecture: d_model={d_model}, d_ff={d_ff}, n_layers={n_layers}")
     print(f"Batch size: {batch_size}, lr: {lr}, warmup_steps: {warmup_steps}")
-    print(f"Total steps: {max_steps}")
-    if max_steps != total_steps:
-        print(f"MAX_STEPS override: {max_steps} (schedule still uses {total_steps})")
-    if profile_every > 0:
-        print(f"Profiling enabled: PROFILE_EVERY={profile_every}")
-    if eval_every == 0:
-        print("Evaluation disabled (EVAL_EVERY=0)")
-    elif eval_every != 5000:
-        print(f"Evaluation interval override: EVAL_EVERY={eval_every}")
-    if train_size != 2700000:
-        print(f"TRAIN_SIZE override: {train_size}")
-    if checkpoint_prefix != CHECKPOINT_PREFIX:
-        print(f"CHECKPOINT_PREFIX override: {checkpoint_prefix}")
-    if skip_checkpoint:
-        print("Checkpointing disabled (SKIP_CHECKPOINT=1)")
-    if log_name != "exp_faster.log":
-        print(f"LOG_NAME override: {log_name}")
+    print(f"Total steps: {total_steps}")
+    print(f"Evaluation interval: {eval_every}")
     print(f"Output directory: {output_dir}")
 
     log_path = os.path.join(output_dir, log_name)
@@ -326,8 +296,6 @@ def train(output_dir="."):
         return results
 
     def do_save_checkpoint(step):
-        if skip_checkpoint:
-            return
         path = os.path.join(output_dir, f"{checkpoint_prefix}{step}.pt")
         torch.save({
             'step': step,
@@ -340,11 +308,7 @@ def train(output_dir="."):
     current_phase_name = None
     current_buckets = None
 
-    for step in range(start_step, max_steps):
-        do_profile = profile_every > 0 and (step % profile_every == 0)
-        if do_profile:
-            step_start = time.perf_counter()
-
+    for step in range(start_step, total_steps):
         current_lr = get_lr(step)
         for param_group in optimizer.param_groups:
             param_group['lr'] = current_lr
@@ -360,53 +324,33 @@ def train(output_dir="."):
             log(f"{'='*60}\n")
 
         model.train()
-        if do_profile:
-            sample_start = time.perf_counter()
         x_batch, t_batch = sample_batch(current_buckets, batch_size)
-        if do_profile:
-            sample_time = time.perf_counter() - sample_start
         x_batch = x_batch.to(device)
         t_batch = t_batch.to(device)
 
         optimizer.zero_grad()
-        if do_profile:
-            torch.cuda.synchronize()
-            compute_start = time.perf_counter()
         with torch.autocast('cuda', dtype=torch.bfloat16):
             loss, all_logits, mask, t_batch = compute_loss(x_batch, t_batch)
         loss.backward()
         optimizer.step()
-        if do_profile:
-            torch.cuda.synchronize()
-            compute_time = time.perf_counter() - compute_start
-            step_time = time.perf_counter() - step_start
 
-        if step % 100 == 0 or step == max_steps - 1:
+        if step % 100 == 0 or step == total_steps - 1:
             with torch.no_grad():
                 final_logits = all_logits[-1]
                 preds = final_logits.argmax(dim=-1)
                 correct = (preds == t_batch) & (mask > 0)
                 train_acc = correct.sum().item() / mask.sum().item()
 
-            profile_msg = ""
-            if do_profile:
-                profile_msg = (
-                    f" | sample: {sample_time*1000:.1f}ms"
-                    f" | compute: {compute_time*1000:.1f}ms"
-                    f" | step: {step_time*1000:.1f}ms"
-                )
-
-            do_eval = (eval_every > 0) and (step % eval_every == 0 or step == max_steps - 1)
+            do_eval = step % eval_every == 0 or step == total_steps - 1
             if do_eval:
                 results = evaluate_all()
                 total_r = results.pop('_total')
                 log(f"Step {step:5d} | LR: {current_lr:.2e} | Loss: {loss.item():.4f} Acc: {train_acc:.2%} | " +
                     " | ".join([f"{name}: {r['solved']}/{r['total']}" for name, r in results.items()]) +
-                    f" | Total: {total_r['solved']}/{total_r['total']} ({100*total_r['solved']/total_r['total']:.1f}%)" +
-                    profile_msg)
+                    f" | Total: {total_r['solved']}/{total_r['total']} ({100*total_r['solved']/total_r['total']:.1f}%)")
                 do_save_checkpoint(step)
             else:
-                log(f"Step {step:5d} | LR: {current_lr:.2e} | Loss: {loss.item():.4f} Acc: {train_acc:.2%}" + profile_msg)
+                log(f"Step {step:5d} | LR: {current_lr:.2e} | Loss: {loss.item():.4f} Acc: {train_acc:.2%}")
 
     log("\n" + "="*60)
     log("FINAL RESULTS - exp_faster")
