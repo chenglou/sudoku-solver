@@ -65,7 +65,8 @@ tensorboard --logdir runs/
 ## Key Files
 
 - `exp_cosine_no_sam.py` - **Recommended**: 800K params, BS=4096, cosine LR, no SAM (83.6%, ~2h)
-- `exp_cosine_50k.py` - **Fast iteration**: 800K params, BS=4096, 50K steps (82.8%, ~1.4h)
+- `exp_cosine_50k_1M.py` - **Fast + accurate**: 1M params, 50K steps (83.2%, ~1.5h)
+- `exp_cosine_50k.py` - **Fastest**: 800K params, BS=4096, 50K steps (82.8%, ~1.4h)
 - `exp_cosine.py` - Highest accuracy: 800K params, BS=4096, cosine LR + SAM (84.0%, ~4h)
 - `exp_scale_wide.py` - Width scaling experiment: 3.2M params, d=512 (74.8% on extreme)
 - `checkpoint_utils.py` - Checkpoint save/resume utilities (Modal preemption-safe)
@@ -92,11 +93,11 @@ test_data = load_test_csv(max_per_bucket=5000, device=device)
 | Model | Params | Batch Size | GPU | Time | Accuracy |
 |-------|--------|------------|-----|------|----------|
 | **exp_cosine_no_sam** | 800K | 4096 | H200 | ~2h | **83.6%** |
+| exp_cosine_50k_1M | 1M | 4096 | H200 | ~1.5h | 83.2% |
 | exp_cosine_50k | 800K | 4096 | H200 | ~1.4h | 82.8% |
 | exp_cosine | 800K | 4096 | H200 | ~4h | 84.0% |
-| exp_scale_wide | 3.2M | 512 | H200 | ~6h | 74.8% |
 | [nano-trm](https://github.com/olivkoch/nano-trm) (reference) | 5M | 256 | - | - | 87.4% |
 
-**Note:** exp_cosine_no_sam is recommended as the default. exp_cosine_50k is pareto-optimal for fast iteration (-0.8pp, 30% faster).
+**Note:** exp_cosine_no_sam is recommended for best accuracy. exp_cosine_50k_1M is pareto-optimal (83.2% in 1.5h). exp_cosine_50k is fastest (82.8% in 1.4h).
 
 See [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis and ablations.

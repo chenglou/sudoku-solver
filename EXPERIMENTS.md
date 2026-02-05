@@ -1733,3 +1733,46 @@ GPU 0 has a total capacity of 139.80 GiB of which 491.25 MiB is free.
 - Checkpoint activations (slower but less memory)
 
 **Conclusion:** BS=4096 is near the memory limit for our architecture on H200. Use gradient accumulation for larger effective batch sizes.
+
+---
+
+## Experiment: 1M Parameters (NEW PARETO)
+
+**File:** `exp_cosine_50k_1M.py`
+
+**Hypothesis:** More model capacity might help accuracy. Scale from 800K to ~1M params.
+
+**Setup:**
+- d_model=144 (from 128)
+- d_ff=576 (from 512, keeping 4x ratio)
+- ~1M params total (vs 800K baseline)
+- 50K steps, BS=4096, cosine LR
+- ~1.5h training on H200
+
+**Results:**
+
+| Metric | 1M params | 800K params | Delta |
+|--------|-----------|-------------|-------|
+| Rating 0 | 99.9% | 100.0% | -0.1pp |
+| Rating 1-2 | 93.8% | 93.9% | -0.1pp |
+| Rating 3-10 | 69.2% | 68.8% | +0.4pp |
+| Rating 11-50 | 71.7% | 70.3% | +1.4pp |
+| Rating 51+ | 81.3% | 80.9% | +0.4pp |
+| **Total** | **83.2%** | **82.8%** | **+0.4pp** |
+
+**Finding:** 1M params achieves **83.2%** in 50K steps - matching the 70K/800K baseline (83.6%) with 30% less training time.
+
+**Why it helps:**
+- More capacity allows better learning in compressed schedule
+- Larger d_model (144 vs 128) gives richer representations
+- The extra params offset the reduced training steps
+
+**Pareto frontier:**
+
+| Config | Params | Steps | Time | Accuracy |
+|--------|--------|-------|------|----------|
+| 70K/800K | 800K | 70K | ~2h | 83.6% |
+| **50K/1M** | **1M** | **50K** | **~1.5h** | **83.2%** |
+| 50K/800K | 800K | 50K | ~1.4h | 82.8% |
+
+**Conclusion:** 1M params with 50K steps is pareto-optimal for balancing accuracy and training time. Best choice when you want near-SOTA accuracy with faster iteration.
