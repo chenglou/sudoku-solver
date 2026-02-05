@@ -35,7 +35,17 @@ image = (
         "/outputs": outputs_volume,
     },
 )
-def run_training(exp_name: str):
+def run_training(
+    exp_name: str,
+    max_steps: int = 0,
+    profile_every: int = 0,
+    profile_mode: str = "",
+    eval_every: int = -1,
+    train_size: int = 0,
+    log_name: str = "",
+    checkpoint_prefix: str = "",
+    skip_checkpoint: bool = False,
+):
     import os
     import sys
     import importlib
@@ -43,6 +53,22 @@ def run_training(exp_name: str):
     # Point HuggingFace to the cached volume
     os.environ["HF_HOME"] = "/hf_cache"
     os.environ["HF_DATASETS_CACHE"] = "/hf_cache/datasets"
+    if max_steps > 0:
+        os.environ["MAX_STEPS"] = str(max_steps)
+    if profile_every > 0:
+        os.environ["PROFILE_EVERY"] = str(profile_every)
+    if profile_mode:
+        os.environ["PROFILE_MODE"] = profile_mode
+    if eval_every >= 0:
+        os.environ["EVAL_EVERY"] = str(eval_every)
+    if train_size > 0:
+        os.environ["TRAIN_SIZE"] = str(train_size)
+    if log_name:
+        os.environ["LOG_NAME"] = log_name
+    if checkpoint_prefix:
+        os.environ["CHECKPOINT_PREFIX"] = checkpoint_prefix
+    if skip_checkpoint:
+        os.environ["SKIP_CHECKPOINT"] = "1"
 
     sys.path.insert(0, "/root/project")
 
@@ -61,7 +87,27 @@ def run_training(exp_name: str):
 
 
 @app.local_entrypoint()
-def main(exp: str = "exp_scale_up_big_gpu"):
+def main(
+    exp: str = "exp_scale_up_big_gpu",
+    max_steps: int = 0,
+    profile_every: int = 0,
+    profile_mode: str = "",
+    eval_every: int = -1,
+    train_size: int = 0,
+    log_name: str = "",
+    checkpoint_prefix: str = "",
+    skip_checkpoint: bool = False,
+):
     print(f"Running experiment: {exp}")
-    result = run_training.remote(exp_name=exp)
+    result = run_training.remote(
+        exp_name=exp,
+        max_steps=max_steps,
+        profile_every=profile_every,
+        profile_mode=profile_mode,
+        eval_every=eval_every,
+        train_size=train_size,
+        log_name=log_name,
+        checkpoint_prefix=checkpoint_prefix,
+        skip_checkpoint=skip_checkpoint,
+    )
     print(f"\nReturned from Modal: {result}")
