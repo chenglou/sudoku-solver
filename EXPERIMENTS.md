@@ -3,7 +3,7 @@
 Early experiments use 100k training steps on easiest difficulty puzzles (100k train, 1k test).
 Later experiments (curriculum, recurrence) use full 2.7M training set across all difficulties (2.5k test).
 
-**Training infrastructure:** Early experiments ran on RTX 4090 (~6h for 70K steps at BS=512). Later experiments (BS=4096, scale_wide, scale_up) ran on Modal H200 (~4h for 70K steps at BS=4096).
+**Training infrastructure:** Early experiments ran on RTX 4090. Later experiments (BS=4096, scale_wide, scale_up) ran on Modal H200.
 
 ---
 
@@ -1443,7 +1443,7 @@ def get_lr(step):
 - Both techniques prevent the optimizer from jumping around in late training
 - With cosine doing this job, SAM's sharpness-aware perturbations add little
 
-**Trade-off:** 0.4pp accuracy vs 2x training speed. For most purposes, **cosine without SAM is the recommended baseline**:
+**Trade-off:** 0.4pp accuracy vs simpler training. For most purposes, **cosine without SAM is the recommended baseline**:
 - 83.6% accuracy (vs 84.0% with SAM)
 - ~2h training time (vs ~4h with SAM)
 - Simpler code (no SAM class needed)
@@ -1595,7 +1595,7 @@ def get_lr(step):
 - Same as exp_cosine_no_sam but 140K steps instead of 70K
 - Curriculum phases scaled 2x (each phase runs 28K steps instead of 14K)
 - Cosine LR decays more slowly (reaches minimum at 140K instead of 70K)
-- Ran on H200, timed out at 95K steps (24h limit)
+- Ran on H200, timed out at 95K steps due to runtime limit
 
 **Results (at step 95K, incomplete):**
 
@@ -1646,7 +1646,7 @@ def get_lr(step):
 | Rating 51+ | 80.9% | 81.9% | -1.0pp |
 | **Total** | **82.8%** | **83.6%** | **-0.8pp** |
 
-**Finding:** 50K steps achieves 82.8% - only **0.8pp below baseline** with **30% less training time**. This is pareto-optimal for fast iteration.
+**Finding:** 50K steps achieves 82.8% - only **0.8pp below baseline** with **30% fewer steps**. This is pareto-optimal for fast iteration.
 
 **Why it works:**
 - The LR curve shape matters more than total steps
@@ -1747,7 +1747,6 @@ GPU 0 has a total capacity of 139.80 GiB of which 491.25 MiB is free.
 - d_ff=576 (from 512, keeping 4x ratio)
 - ~1M params total (vs 800K baseline)
 - 50K steps, BS=4096, cosine LR
-- ~1.5h training on H200
 
 **Results:**
 
@@ -1769,10 +1768,10 @@ GPU 0 has a total capacity of 139.80 GiB of which 491.25 MiB is free.
 
 **Pareto frontier:**
 
-| Config | Params | Steps | Time | Accuracy |
-|--------|--------|-------|------|----------|
-| 70K/800K | 800K | 70K | ~2h | 83.6% |
-| **50K/1M** | **1M** | **50K** | **~1.5h** | **83.2%** |
-| 50K/800K | 800K | 50K | ~1.4h | 82.8% |
+| Config | Params | Steps | Accuracy |
+|--------|--------|-------|----------|
+| 70K/800K | 800K | 70K | 83.6% |
+| **50K/1M** | **1M** | **50K** | **83.2%** |
+| 50K/800K | 800K | 50K | 82.8% |
 
-**Conclusion:** 1M params with 50K steps is pareto-optimal for balancing accuracy and training time. Best choice when you want near-SOTA accuracy with faster iteration.
+**Conclusion:** 1M params with 50K steps is pareto-optimal for balancing accuracy and step budget. Best choice when you want near-SOTA accuracy with fewer steps.
