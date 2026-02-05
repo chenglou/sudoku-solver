@@ -63,6 +63,19 @@ ROW_IDX = torch.tensor([i // 9 for i in range(81)])
 COL_IDX = torch.tensor([i % 9 for i in range(81)])
 BOX_IDX = torch.tensor([(i // 9 // 3) * 3 + (i % 9 // 3) for i in range(81)])
 
+CHAR_TO_DIGIT = np.zeros(256, dtype=np.uint8)
+for i in range(1, 10):
+    CHAR_TO_DIGIT[ord(str(i))] = i
+
+CHAR_TO_TARGET = np.zeros(256, dtype=np.uint8)
+for i in range(1, 10):
+    CHAR_TO_TARGET[ord(str(i))] = i - 1
+
+CHAR_TO_DIGIT[ord('.')] = 0
+
+ENCODE_CHUNK_SIZE = 50000
+ONE_HOT = np.eye(10, dtype=np.float32)
+
 
 class SudokuTransformer(nn.Module):
     def __init__(self):
@@ -102,21 +115,30 @@ class SudokuTransformer(nn.Module):
         return all_logits if return_all else logits
 
 
-def encode_puzzle(puzzle_str):
-    x = torch.zeros(81, 10)
-    for i, c in enumerate(puzzle_str):
-        if c == '.':
-            x[i, 0] = 1
-        else:
-            x[i, int(c)] = 1
-    return x
+def encode_puzzles(puzzles):
+    if not puzzles:
+        return torch.empty((0, 81, 10), dtype=torch.float32)
+    chunks = []
+    for start in range(0, len(puzzles), ENCODE_CHUNK_SIZE):
+        chunk = puzzles[start:start + ENCODE_CHUNK_SIZE]
+        buf = ''.join(chunk).encode('ascii')
+        arr = np.frombuffer(buf, dtype=np.uint8).reshape(len(chunk), 81)
+        digits = CHAR_TO_DIGIT[arr]
+        chunks.append(torch.from_numpy(ONE_HOT[digits]))
+    return torch.cat(chunks, dim=0)
 
 
-def encode_solution(solution_str):
-    out = torch.empty(81, dtype=torch.uint8)
-    for i, c in enumerate(solution_str):
-        out[i] = int(c) - 1
-    return out
+def encode_solutions(solutions):
+    if not solutions:
+        return torch.empty((0, 81), dtype=torch.uint8)
+    chunks = []
+    for start in range(0, len(solutions), ENCODE_CHUNK_SIZE):
+        chunk = solutions[start:start + ENCODE_CHUNK_SIZE]
+        buf = ''.join(chunk).encode('ascii')
+        arr = np.frombuffer(buf, dtype=np.uint8).reshape(len(chunk), 81)
+        digits = CHAR_TO_TARGET[arr]
+        chunks.append(torch.from_numpy(digits))
+    return torch.cat(chunks, dim=0)
 
 
 def get_lr(step):
@@ -139,26 +161,29 @@ def train(output_dir="."):
     print("Loading sudoku-extreme train split...")
     dataset = load_dataset("sapientinc/sudoku-extreme", split="train")
     print(f"Total available: {len(dataset)}")
+    train_size = min(train_size, len(dataset))
     print(f"Using first {train_size} for training")
 
     test_dataset = load_dataset("sapientinc/sudoku-extreme", split="test")
     print(f"Test set: {len(test_dataset)}")
 
     print("\nEncoding training data by rating...")
+    train_rows = dataset[:train_size]
+    ratings = np.asarray(train_rows["rating"], dtype=np.int16)
+    puzzles_all = train_rows["question"]
+    solutions_all = train_rows["answer"]
+    x_all = encode_puzzles(puzzles_all)
+    targets_all = encode_solutions(solutions_all)
+    del puzzles_all, solutions_all, train_rows
     train_data = {}
     for min_r, max_r, name in RATING_BUCKETS:
-        indices = [i for i in range(train_size) if min_r <= dataset[i]['rating'] <= max_r]
-        if len(indices) == 0:
+        idx = np.where((ratings >= min_r) & (ratings <= max_r))[0]
+        if idx.size == 0:
             continue
-        print(f"  Rating {name}: {len(indices)} puzzles...", end=" ", flush=True)
-        puzzles = [dataset[i]['question'] for i in indices]
-        solutions = [dataset[i]['answer'] for i in indices]
-        x_data = torch.stack([encode_puzzle(p) for p in puzzles])
-        targets = torch.stack([encode_solution(s) for s in solutions])
+        print(f"  Rating {name}: {len(idx)} puzzles...", end=" ", flush=True)
         train_data[(min_r, max_r)] = {
-            'x': x_data,
-            'targets': targets,
-            'size': len(puzzles),
+            'idx': torch.from_numpy(idx),
+            'size': int(idx.size),
         }
         print("done")
 
@@ -179,7 +204,7 @@ def train(output_dir="."):
             indices = random.sample(indices, 5000)
         puzzles = [test_dataset[i]['question'] for i in indices]
         solutions = [test_dataset[i]['answer'] for i in indices]
-        x_test = torch.stack([encode_puzzle(p) for p in puzzles]).to(device)
+        x_test = encode_puzzles(puzzles).to(device)
         test_data[name] = {
             'x': x_test,
             'puzzles': puzzles,
@@ -243,9 +268,10 @@ def train(output_dir="."):
         for b, count in zip(active_buckets, counts):
             if count == 0:
                 continue
-            idx = torch.randint(0, train_data[b]['size'], (count,))
-            x_parts.append(train_data[b]['x'][idx])
-            t_parts.append(train_data[b]['targets'][idx])
+            bucket_idx = train_data[b]['idx']
+            sel = bucket_idx[torch.randint(0, train_data[b]['size'], (count,))]
+            x_parts.append(x_all[sel])
+            t_parts.append(targets_all[sel])
         x_batch = torch.cat(x_parts, dim=0)
         t_batch = torch.cat(t_parts, dim=0)
         perm = torch.randperm(bs)
