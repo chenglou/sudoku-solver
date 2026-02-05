@@ -9,6 +9,7 @@ For training on Modal:
 - `timeout` default is 5min. Training needs more. We can just use the max, 24h
 - Volumes persist indefinitely (no auto-eviction)
 - Local output stream can die while Modal worker continues. Check `modal container list` and `modal volume ls` for true status
+- `modal app logs` streams only while the app is active (per Modal docs). For detached/finished runs, query the output log file from the volume (poll with `modal volume get`).
 - Keep training code Modal-agnostic: pass `output_dir` param, Modal wrapper sets it to volume path
 
 For torch.compile:
