@@ -1,0 +1,445 @@
+# Experiment: Muon split optimizer, mixed sampling (no weight decay)
+# Based on exp_muon_lr01_mixed but splits Muon (>=2D) and AdamW (1D params).
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from datasets import load_dataset
+import random
+import os
+import math
+import numpy as np
+from checkpoint_utils import find_latest_checkpoint, load_checkpoint
+
+torch.set_float32_matmul_precision('high')
+
+
+class Muon(torch.optim.Optimizer):
+    """Muon optimizer - Momentum Orthogonalized by Newton-Schulz."""
+    def __init__(self, params, lr=0.01, momentum=0.95, nesterov=True, ns_steps=5, weight_decay=0.0):
+        defaults = dict(
+            lr=lr,
+            momentum=momentum,
+            nesterov=nesterov,
+            ns_steps=ns_steps,
+            weight_decay=weight_decay,
+        )
+        super().__init__(params, defaults)
+
+    def step(self):
+        for group in self.param_groups:
+            lr = group['lr']
+            momentum = group['momentum']
+            nesterov = group['nesterov']
+            ns_steps = group['ns_steps']
+            weight_decay = group['weight_decay']
+
+            for p in group['params']:
+                if p.grad is None:
+                    continue
+                g = p.grad
+                state = self.state[p]
+
+                if 'momentum_buffer' not in state:
+                    state['momentum_buffer'] = torch.zeros_like(g)
+                buf = state['momentum_buffer']
+                buf.mul_(momentum).add_(g)
+
+                if nesterov:
+                    g = g.add(buf, alpha=momentum)
+                else:
+                    g = buf
+
+                # Newton-Schulz orthogonalization for 2D+ params
+                if g.ndim >= 2:
+                    g = self._newton_schulz(g, ns_steps)
+                    # Scale by sqrt of matrix dimensions
+                    g = g * max(1, g.size(0) / g.size(1)) ** 0.5
+
+                if weight_decay:
+                    p.data.add_(p.data, alpha=-lr * weight_decay)
+                p.data.add_(g, alpha=-lr)
+
+    @staticmethod
+    def _newton_schulz(G, steps=5):
+        """Approximate orthogonalization via Newton-Schulz iteration."""
+        shape = G.shape
+        if G.ndim > 2:
+            G = G.view(G.size(0), -1)
+
+        G = G / (G.norm() + 1e-7)
+
+        for _ in range(steps):
+            A = G @ G.T
+            G = 1.5 * G - 0.5 * A @ G
+
+        return G.view(shape)
+
+
+CHECKPOINT_PREFIX = "muon_split_lr01_mixed_checkpoint_step"
+
+CONFIG = {
+    'experiment': 'exp_muon_split_lr01_mixed',
+    'd_model': 128,
+    'd_ff': 512,
+    'n_layers': 4,
+    'batch_size': 4096,
+    'muon_lr': 1e-2,
+    'adamw_lr': 1.5e-3,
+    'weight_decay': 0.0,
+    'warmup_steps': 1400,
+    'lr_min_ratio': 0.01,
+    'total_steps': 50000,
+}
+
+d_model = 128  # head_dim=32 (d_model / n_heads)
+n_heads = 4
+d_ff = 512
+n_layers = 4
+n_iterations = 16
+muon_lr = 1e-2
+adamw_lr = 1.5e-3
+weight_decay = 0.0
+warmup_steps = 1400
+lr_min_ratio = 0.01
+total_steps = 50000
+batch_size = 4096
+train_size = 2700000
+eval_every = 5000
+checkpoint_prefix = CHECKPOINT_PREFIX
+log_name = "exp_muon_split_lr01_mixed.log"
+
+RATING_BUCKETS = [
+    (0, 0, "0"),
+    (1, 2, "1-2"),
+    (3, 10, "3-10"),
+    (11, 50, "11-50"),
+    (51, 1000, "51+"),
+]
+
+ROW_IDX = torch.tensor([i // 9 for i in range(81)])
+COL_IDX = torch.tensor([i % 9 for i in range(81)])
+BOX_IDX = torch.tensor([(i // 9 // 3) * 3 + (i % 9 // 3) for i in range(81)])
+
+CHAR_TO_DIGIT = np.zeros(256, dtype=np.uint8)
+for i in range(1, 10):
+    CHAR_TO_DIGIT[ord(str(i))] = i
+
+CHAR_TO_TARGET = np.zeros(256, dtype=np.uint8)
+for i in range(1, 10):
+    CHAR_TO_TARGET[ord(str(i))] = i - 1
+
+CHAR_TO_DIGIT[ord('.')] = 0
+
+ENCODE_CHUNK_SIZE = 50000
+ONE_HOT = np.eye(10, dtype=np.float32)
+
+
+class SudokuTransformer(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.initial_encoder = nn.Linear(10, d_model)
+        self.pred_proj = nn.Linear(9, d_model)
+        self.row_embed = nn.Embedding(9, d_model)
+        self.col_embed = nn.Embedding(9, d_model)
+        self.box_embed = nn.Embedding(9, d_model)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model, nhead=n_heads, dim_feedforward=d_ff,
+            batch_first=True, norm_first=True,
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+        self.output_head = nn.Linear(d_model, 9)
+
+    def forward(self, x, return_all=False):
+        batch_size = x.size(0)
+        device = x.device
+        row_idx = ROW_IDX.to(device)
+        col_idx = COL_IDX.to(device)
+        box_idx = BOX_IDX.to(device)
+        pos_embed = self.row_embed(row_idx) + self.col_embed(col_idx) + self.box_embed(box_idx)
+
+        h_prev = self.initial_encoder(x)
+        preds = torch.zeros(batch_size, 81, 9, device=device)
+
+        all_logits = []
+        for _ in range(n_iterations):
+            h = h_prev + self.pred_proj(preds) + pos_embed
+            h = self.transformer(h)
+            h_prev = h
+            logits = self.output_head(h)
+            preds = F.softmax(logits, dim=-1)
+            if return_all:
+                all_logits.append(logits)
+        return all_logits if return_all else logits
+
+
+def encode_puzzles(puzzles):
+    if not puzzles:
+        return torch.empty((0, 81, 10), dtype=torch.float32)
+    chunks = []
+    for start in range(0, len(puzzles), ENCODE_CHUNK_SIZE):
+        chunk = puzzles[start:start + ENCODE_CHUNK_SIZE]
+        buf = ''.join(chunk).encode('ascii')
+        arr = np.frombuffer(buf, dtype=np.uint8).reshape(len(chunk), 81)
+        digits = CHAR_TO_DIGIT[arr]
+        chunks.append(torch.from_numpy(ONE_HOT[digits]))
+    return torch.cat(chunks, dim=0)
+
+
+def encode_solutions(solutions):
+    if not solutions:
+        return torch.empty((0, 81), dtype=torch.uint8)
+    chunks = []
+    for start in range(0, len(solutions), ENCODE_CHUNK_SIZE):
+        chunk = solutions[start:start + ENCODE_CHUNK_SIZE]
+        buf = ''.join(chunk).encode('ascii')
+        arr = np.frombuffer(buf, dtype=np.uint8).reshape(len(chunk), 81)
+        digits = CHAR_TO_TARGET[arr]
+        chunks.append(torch.from_numpy(digits))
+    return torch.cat(chunks, dim=0)
+
+
+def get_lr(step, base_lr):
+    if step < warmup_steps:
+        return base_lr * (step + 1) / warmup_steps
+    progress = (step - warmup_steps) / (total_steps - warmup_steps)
+    cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
+    return base_lr * (lr_min_ratio + (1 - lr_min_ratio) * cosine_decay)
+
+
+def train(output_dir="."):
+    device = torch.device("cuda")
+    print(
+        "SDPA backends enabled: "
+        f"flash={torch.backends.cuda.flash_sdp_enabled()}, "
+        f"mem_efficient={torch.backends.cuda.mem_efficient_sdp_enabled()}, "
+        f"math={torch.backends.cuda.math_sdp_enabled()}"
+    )
+
+    print("Loading sudoku-extreme train split...")
+    dataset = load_dataset("sapientinc/sudoku-extreme", split="train")
+    print(f"Total available: {len(dataset)}")
+    train_size_local = min(train_size, len(dataset))
+    print(f"Using first {train_size_local} for training")
+
+    test_dataset = load_dataset("sapientinc/sudoku-extreme", split="test")
+    print(f"Test set: {len(test_dataset)}")
+
+    print("\nEncoding training data...")
+    train_rows = dataset[:train_size_local]
+    puzzles_all = train_rows["question"]
+    solutions_all = train_rows["answer"]
+    x_all = encode_puzzles(puzzles_all)
+    targets_all = encode_solutions(solutions_all)
+    del puzzles_all, solutions_all, train_rows
+
+    print("\nPreparing test data...")
+    test_data = {}
+    for min_r, max_r, name in RATING_BUCKETS:
+        indices = [i for i in range(len(test_dataset)) if min_r <= test_dataset[i]['rating'] <= max_r]
+        if len(indices) == 0:
+            continue
+        if len(indices) > 5000:
+            indices = random.sample(indices, 5000)
+        puzzles = [test_dataset[i]['question'] for i in indices]
+        solutions = [test_dataset[i]['answer'] for i in indices]
+        x_test = encode_puzzles(puzzles).to(device)
+        test_data[name] = {
+            'x': x_test,
+            'puzzles': puzzles,
+            'solutions': solutions,
+        }
+        print(f"  Test {name}: {len(puzzles)} puzzles")
+
+    model = SudokuTransformer().to(device)
+    param_count = sum(p.numel() for p in model.parameters())
+    print(f"\nModel parameters: {param_count:,}")
+
+    checkpoint_path, start_step = None, 0
+    checkpoint_data = None
+    checkpoint_path, start_step = find_latest_checkpoint(output_dir, checkpoint_prefix)
+    if checkpoint_path:
+        print(f"Found checkpoint: {checkpoint_path}")
+        checkpoint_data = load_checkpoint(checkpoint_path, model, CONFIG)
+        start_step = checkpoint_data['step']
+        print(f"Loaded model weights from step {start_step}")
+
+    model = torch.compile(model)
+
+    muon_params = []
+    adamw_params = []
+    for name, param in model.named_parameters():
+        if param.ndim >= 2:
+            muon_params.append(param)
+        else:
+            adamw_params.append(param)
+
+    optimizer_muon = Muon(
+        muon_params,
+        lr=muon_lr,
+        momentum=0.95,
+        nesterov=True,
+        ns_steps=5,
+        weight_decay=weight_decay,
+    )
+    optimizer_adamw = torch.optim.AdamW(
+        adamw_params,
+        lr=adamw_lr,
+        betas=(0.9, 0.95),
+        weight_decay=0.0,
+    )
+
+    if checkpoint_data:
+        optimizer_muon.load_state_dict(checkpoint_data['optimizer_state_dict_muon'])
+        optimizer_adamw.load_state_dict(checkpoint_data['optimizer_state_dict_adamw'])
+        for state in optimizer_muon.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device)
+        for state in optimizer_adamw.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device)
+        print(f"Resumed from step {start_step}")
+
+    print("\nExperiment: Muon split lr=0.01 mixed (d_model=128, head_dim=32)")
+    print(f"Architecture: d_model={d_model}, d_ff={d_ff}, n_layers={n_layers}")
+    print(f"Batch size: {batch_size}, muon_lr: {muon_lr}, adamw_lr: {adamw_lr}, wd: {weight_decay}")
+    print(f"Total steps: {total_steps}")
+    print(f"Evaluation interval: {eval_every}")
+    print(f"Output directory: {output_dir}")
+
+    log_path = os.path.join(output_dir, log_name)
+    log_file = open(log_path, "a")
+
+    def log(msg):
+        print(msg)
+        log_file.write(msg + "\n")
+        log_file.flush()
+
+    def sample_batch(bs):
+        idx = torch.randint(0, train_size_local, (bs,))
+        x_batch = x_all[idx]
+        t_batch = targets_all[idx]
+        return x_batch, t_batch
+
+    def compute_loss(x_batch, t_batch):
+        all_logits = model(x_batch, return_all=True)
+        mask = x_batch[:, :, 0]
+        mask = mask.to(dtype=torch.float32)
+        t_batch = t_batch.to(dtype=torch.long)
+        loss = 0
+        for logits in all_logits:
+            per_cell = F.cross_entropy(logits.reshape(-1, 9), t_batch.reshape(-1), reduction='none')
+            per_cell = per_cell.view(t_batch.size(0), 81)
+            loss = loss + (per_cell * mask).sum() / mask.sum()
+        loss = loss / len(all_logits)
+        return loss, all_logits, mask, t_batch
+
+    def evaluate_all():
+        model.eval()
+        results = {}
+        total_solved = 0
+        total_puzzles = 0
+        with torch.no_grad(), torch.autocast('cuda', dtype=torch.bfloat16):
+            for name, data in test_data.items():
+                x_test = data['x']
+                puzzles = data['puzzles']
+                solutions = data['solutions']
+                puzzles_solved = 0
+                for start in range(0, len(puzzles), 256):
+                    end = min(start + 256, len(puzzles))
+                    batch_x = x_test[start:end]
+                    logits = model(batch_x)
+                    preds_full = logits.argmax(dim=-1).cpu()
+                    for b, (puzzle, solution) in enumerate(zip(puzzles[start:end], solutions[start:end])):
+                        pred_solution = list(puzzle)
+                        for i in range(81):
+                            if puzzle[i] == '.':
+                                pred_solution[i] = str(preds_full[b, i].item() + 1)
+                        if ''.join(pred_solution) == solution:
+                            puzzles_solved += 1
+                results[name] = {'solved': puzzles_solved, 'total': len(puzzles)}
+                total_solved += puzzles_solved
+                total_puzzles += len(puzzles)
+        results['_total'] = {'solved': total_solved, 'total': total_puzzles}
+        return results
+
+    def do_save_checkpoint(step):
+        path = os.path.join(output_dir, f"{checkpoint_prefix}{step}.pt")
+        torch.save({
+            'step': step,
+            'model_state_dict': {k.replace('_orig_mod.', ''): v for k, v in model.state_dict().items()},
+            'optimizer_state_dict_muon': optimizer_muon.state_dict(),
+            'optimizer_state_dict_adamw': optimizer_adamw.state_dict(),
+            'config': CONFIG,
+        }, path)
+        print(f"Checkpoint saved: {path}")
+
+    for step in range(start_step, total_steps):
+        current_muon_lr = get_lr(step, muon_lr)
+        current_adamw_lr = get_lr(step, adamw_lr)
+        for param_group in optimizer_muon.param_groups:
+            param_group['lr'] = current_muon_lr
+        for param_group in optimizer_adamw.param_groups:
+            param_group['lr'] = current_adamw_lr
+
+        model.train()
+        x_batch, t_batch = sample_batch(batch_size)
+        x_batch = x_batch.to(device)
+        t_batch = t_batch.to(device)
+
+        optimizer_muon.zero_grad()
+        optimizer_adamw.zero_grad()
+        with torch.autocast('cuda', dtype=torch.bfloat16):
+            loss, all_logits, mask, t_batch = compute_loss(x_batch, t_batch)
+        loss.backward()
+        optimizer_muon.step()
+        optimizer_adamw.step()
+
+        if step % 100 == 0 or step == total_steps - 1:
+            with torch.no_grad():
+                final_logits = all_logits[-1]
+                preds = final_logits.argmax(dim=-1)
+                correct = (preds == t_batch) & (mask > 0)
+                train_acc = correct.sum().item() / mask.sum().item()
+
+            do_eval = step % eval_every == 0 or step == total_steps - 1
+            if do_eval:
+                results = evaluate_all()
+                total_r = results.pop('_total')
+                log(
+                    f"Step {step:5d} | "
+                    f"LRm: {current_muon_lr:.2e} LRa: {current_adamw_lr:.2e} | "
+                    f"Loss: {loss.item():.4f} Acc: {train_acc:.2%} | " +
+                    " | ".join([f"{name}: {r['solved']}/{r['total']}" for name, r in results.items()]) +
+                    f" | Total: {total_r['solved']}/{total_r['total']} "
+                    f"({100*total_r['solved']/total_r['total']:.1f}%)"
+                )
+                do_save_checkpoint(step)
+            else:
+                log(
+                    f"Step {step:5d} | "
+                    f"LRm: {current_muon_lr:.2e} LRa: {current_adamw_lr:.2e} | "
+                    f"Loss: {loss.item():.4f} Acc: {train_acc:.2%}"
+                )
+
+    log("\n" + "="*60)
+    log("FINAL RESULTS - exp_muon_split_lr01_mixed")
+    log("="*60)
+    results = evaluate_all()
+    total_r = results.pop('_total')
+    for name, r in results.items():
+        log(f"Rating {name:6s}: {r['solved']:5d}/{r['total']:5d} solved ({100*r['solved']/r['total']:5.1f}%)")
+    log(f"\nTotal: {total_r['solved']}/{total_r['total']} ({100*total_r['solved']/total_r['total']:.1f}%)")
+    log(f"Cosine 50K baseline: 82.8%")
+
+    final_path = os.path.join(output_dir, "model_muon_split_lr01_mixed.pt")
+    state_dict = {k.replace('_orig_mod.', ''): v for k, v in model.state_dict().items()}
+    torch.save(state_dict, final_path)
+    log(f"Final model saved: {final_path}")
+    log_file.close()
+
+
+if __name__ == "__main__":
+    train()
