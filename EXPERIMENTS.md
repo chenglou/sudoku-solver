@@ -52,15 +52,7 @@ Later experiments (curriculum, recurrence) use full 2.7M training set across all
 
 ## Ablation: No Sudoku Positional Encoding
 
-**File:** `ablation_no_sudoku_pos.py`
-
-**Hypothesis:** Do structured row/col/box embeddings help, or can the model learn positions from scratch?
-
-**Change:** Replace `row_embed + col_embed + box_embed` with simple learned 81-position embedding.
-
-**Results:** 88.4% acc, 409 solved
-
-**Finding:** Structured positional encoding helps (+4.4% acc, +234 puzzles). It bakes in Sudoku structure (which cells share constraints).
+Moved to [pos_embedding/EXPERIMENTS_POS.md](pos_embedding/EXPERIMENTS_POS.md).
 
 ---
 
@@ -168,15 +160,7 @@ Weight sharing acts as regularization - forcing the model to learn ONE general i
 
 ## Experiment: Sinusoidal Positional Encoding
 
-**File:** `exp_sinusoidal_pos.py`
-
-**Hypothesis:** Would fixed sinusoidal encodings work as well as learned embeddings for row/col/box positions?
-
-**Change:** Replace learned `nn.Embedding(9, d_model)` for row/col/box with fixed sinusoidal encodings using the standard formula: `PE(pos, 2i) = sin(pos / 10000^(2i/d_model))`.
-
-**Results:** 50.1% acc, 0 solved
-
-**Finding:** Complete failure. Standard sinusoidal encoding is designed for long sequences (hundreds+ positions) where the frequencies create distinguishable patterns. For positions 0-8, the sin/cos values are too similar to differentiate. Learned embeddings are much better for small, discrete position spaces.
+Moved to [pos_embedding/EXPERIMENTS_POS.md](pos_embedding/EXPERIMENTS_POS.md).
 
 ---
 
@@ -340,13 +324,13 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | Baseline (easy only) | 1k easy | 643 | - |
 | No iteration | 1k easy | 0 | Iteration critical |
 | No intermediate | 1k easy | 428 | Intermediate helps |
-| No sudoku pos | 1k easy | 409 | Structure helps |
+| No sudoku pos | 1k easy | 409 | See [pos_embedding/](pos_embedding/EXPERIMENTS_POS.md) |
 | Project-add | 1k easy | 555 | No reliable gain |
 | Project-concat | 1k easy | 582 | No reliable gain |
 | Middle1 (2×2) | 1k easy | 162 | Depth > specialization |
 | Middle2 (4×1) | 1k easy | 0 | 1 layer insufficient |
 | Unrolled (16×4) | 1k easy | 581 | Weight sharing helps |
-| Sinusoidal pos | 1k easy | 0 | Learned >> sinusoidal |
+| Sinusoidal pos | 1k easy | 0 | See [pos_embedding/](pos_embedding/EXPERIMENTS_POS.md) |
 | BS=256 + bf16 | 1k easy | 833 | Larger batch helps |
 | SAM + BS=512 | 1k easy | 948 | SAM closes gen gap |
 | Mixed training | 2.5k mixed | 1930 | Mixed > easy-only |
@@ -371,7 +355,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | Cosine + Mixed | 25k extreme | 83.8% | Mixed nearly matches reverse with cosine |
 | Cosine + Regular | 25k extreme | 80.6% | Easy→hard still hurts (-3.4pp) |
 | **Cosine - SAM** | 25k extreme | **83.6%** | **Recommended: 2x faster, -0.4pp** |
-| Cosine pos_once | 25k extreme | 82.8% | pos_embed every iter helps +0.8pp |
+| Cosine pos_once | 25k extreme | 82.8% | See [pos_embedding/](pos_embedding/EXPERIMENTS_POS.md) |
 
 ---
 
@@ -387,9 +371,7 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 
 5. **Intermediate supervision helps** - Gradient signal to all iterations stabilizes training.
 
-6. **Structured pos encoding helps** - But may be redundant with sparse attention (see RRN experiments).
-
-7. **Learned embeddings >> sinusoidal for small spaces** - Standard sinusoidal encoding fails catastrophically for positions 0-8. The frequencies are designed for long sequences; for small discrete spaces, learned embeddings adapt much better.
+6. **Positional encoding** - See [pos_embedding/EXPERIMENTS_POS.md](pos_embedding/EXPERIMENTS_POS.md) for full analysis. Key finding: 2D RoPE matches sudoku-specific row/col/box embeddings within noise (-0.3pp), so we use it as the baseline.
 
 8. **Training has high variance** - Results can vary significantly between runs. Always rerun to verify improvements.
 
@@ -1456,35 +1438,7 @@ def get_lr(step):
 
 ## Experiment: Position Embedding Once vs Every Iteration
 
-**File:** `exp_cosine_pos_once.py`
-
-**Hypothesis:** We add pos_embed (row + col + box embeddings) at every iteration. Since h_prev carries forward, the position info should propagate. Is adding it 16x redundant?
-
-**Setup:**
-- Same as exp_cosine_no_sam (83.6%) but add pos_embed only at initialization
-- Before: `h = h_prev + pred_proj(preds) + pos_embed` (every iteration)
-- After: `h_prev = initial_encoder(x) + pos_embed` (once), then `h = h_prev + pred_proj(preds)`
-- 70K steps on H200
-
-**Results:**
-
-| Metric | Once | Every Iter | Delta |
-|--------|------|------------|-------|
-| Rating 0 | 100.0% | 99.8% | +0.2pp |
-| Rating 1-2 | 94.3% | 94.3% | 0pp |
-| Rating 3-10 | 69.4% | 70.0% | -0.6pp |
-| Rating 11-50 | 69.9% | 71.8% | -1.9pp |
-| Rating 51+ | 80.7% | 81.9% | -1.2pp |
-| **Total** | **82.8%** | **83.6%** | **-0.8pp** |
-
-**Finding:** Adding pos_embed every iteration helps **0.8pp**. The repeated position signal acts as a constant anchor that helps the model maintain spatial awareness across iterations.
-
-**Why it helps:**
-- Transformer layers can distort the position information over iterations
-- Re-adding pos_embed reinforces "where am I" signal at each step
-- Cheap to compute (just addition), so no reason to remove it
-
-**Conclusion:** Keep pos_embed every iteration. The 0.8pp gain is free.
+Moved to [pos_embedding/EXPERIMENTS_POS.md](pos_embedding/EXPERIMENTS_POS.md).
 
 ---
 

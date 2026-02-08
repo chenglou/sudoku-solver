@@ -64,15 +64,15 @@ tensorboard --logdir runs/
 
 ## Key Files
 
-- `exp_cosine_no_sam.py` - **Recommended**: 800K params, BS=4096, cosine LR, no SAM (83.6%)
-- `exp_cosine_50k_1M.py` - **Fast + accurate**: 1M params, 50K steps (83.2%)
-- `exp_cosine_50k.py` - 800K params, BS=4096, 50K steps (82.8%)
-- `exp_cosine.py` - Highest accuracy: 800K params, BS=4096, cosine LR + SAM (84.0%)
-- `exp_scale_wide.py` - Width scaling experiment: 3.2M params, d=512 (74.8% on extreme)
+- `exp_faster.py` - **Baseline**: 2D RoPE, 800K params, BS=4096, cosine LR (82.5%)
+- `exp_cosine_no_sam.py` - Previous best with sudoku pos encoding: cosine LR, no SAM (83.6%)
+- `exp_cosine.py` - Highest accuracy (sudoku pos): cosine LR + SAM (84.0%)
 - `checkpoint_utils.py` - Checkpoint save/resume utilities (Modal preemption-safe)
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
 - `test_data.py` - Test data loader using test.csv (matches nano-trm for fair comparison)
 - `EXPERIMENTS.md` - Full experiment log and results
+- `pos_embedding/` - Positional encoding experiments and [results](pos_embedding/EXPERIMENTS_POS.md)
+- `muon/` - Muon optimizer experiments and [results](muon/EXPERIMENTS_MUON.md)
 - `modal_run.py` - (Optional) Modal wrapper for running experiments on Modal GPUs
 - `requirements-modal.txt` - Minimal deps for Modal (no local CUDA libraries)
 - `logs_to_tensorboard.py` - Convert experiment logs to TensorBoard format (post-hoc)
@@ -90,14 +90,11 @@ test_data = load_test_csv(max_per_bucket=5000, device=device)
 
 ## Results (sudoku-extreme benchmark)
 
-| Model | Params | Batch Size | GPU | Accuracy |
-|-------|--------|------------|-----|----------|
-| **exp_cosine_no_sam** | 800K | 4096 | H200 | **83.6%** |
-| exp_cosine_50k_1M | 1M | 4096 | H200 | 83.2% |
-| exp_cosine_50k | 800K | 4096 | H200 | 82.8% |
-| exp_cosine | 800K | 4096 | H200 | 84.0% |
-| [nano-trm](https://github.com/olivkoch/nano-trm) (reference) | 5M | 256 | - | - | 87.4% |
+| Model | Params | Pos Encoding | GPU | Accuracy |
+|-------|--------|--------------|-----|----------|
+| **exp_faster** (baseline) | 800K | 2D RoPE | H200 | **82.5%** |
+| exp_cosine_no_sam | 800K | row+col+box | H200 | 83.6% |
+| exp_cosine | 800K | row+col+box | H200 | 84.0% |
+| [nano-trm](https://github.com/olivkoch/nano-trm) (reference) | 5M | — | — | 87.4% |
 
-**Note:** exp_cosine_no_sam is recommended for best accuracy. exp_cosine_50k_1M is a strong 1M‑param baseline (83.2%). exp_cosine_50k is a smaller 800K‑param variant (82.8%).
-
-See [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis and ablations.
+The baseline uses sudoku-agnostic 2D RoPE (only knows it's a grid, no constraint structure). See [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis, [pos_embedding/](pos_embedding/EXPERIMENTS_POS.md) for positional encoding comparisons.
