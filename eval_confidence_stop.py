@@ -95,6 +95,28 @@ def evaluate(model_path, exp_module='exp_faster_2drope', max_iters=64,
             all_logits.append(logits.cpu())
         return all_logits
 
+    def run_with_ema(model, x, n_iters, alpha):
+        """Run iterations with EMA-smoothed predictions fed back. alpha=1.0 means no EMA."""
+        batch_size = x.size(0)
+        dev = x.device
+        rope_cos = mod.ROPE_COS.to(dev)
+        rope_sin = mod.ROPE_SIN.to(dev)
+
+        h_prev = model.initial_encoder(x)
+        preds = torch.zeros(batch_size, 81, 9, device=dev)
+        all_logits = []
+
+        for _ in range(n_iters):
+            h = h_prev + model.pred_proj(preds)
+            for layer in model.layers:
+                h = layer(h, rope_cos, rope_sin)
+            h_prev = h
+            logits = model.output_head(h)
+            new_preds = F.softmax(logits, dim=-1)
+            preds = alpha * new_preds + (1 - alpha) * preds
+            all_logits.append(logits.cpu())
+        return all_logits
+
     batch_size = 128  # smaller batch since we store all iterations
     print(f"Running {max_iters} iterations, collecting all intermediate outputs...")
     t_start = time.time()
@@ -211,6 +233,61 @@ def evaluate(model_path, exp_module='exp_faster_2drope', max_iters=64,
             lo = i * 4
             hi = lo + 3
             print(f"    Iters {lo:3d}-{hi:3d}: {int(count):5d} puzzles")
+
+    # Per-iteration solve rate and regressions
+    print(f"\n  Per-iteration solve/regression analysis:")
+    solved_at = torch.zeros(T, N, dtype=torch.bool)  # (T, N)
+    for t in range(T):
+        correct = (all_preds[t] == solution_targets) & empty_masks
+        solved_at[t] = correct.sum(dim=1) == empty_masks.sum(dim=1)
+
+    print(f"  {'Iter':>5} | {'Solved':>6} | {'New':>5} | {'Lost':>5} | {'Ever solved':>11} | {'Ever then lost':>14}")
+    print(f"  " + "-" * 70)
+    ever_solved = torch.zeros(N, dtype=torch.bool)
+    for t in range(T):
+        newly_solved = solved_at[t] & ~(solved_at[t-1] if t > 0 else torch.zeros(N, dtype=torch.bool))
+        lost = ~solved_at[t] & (solved_at[t-1] if t > 0 else torch.zeros(N, dtype=torch.bool))
+        ever_solved = ever_solved | solved_at[t]
+        ever_then_lost = ever_solved & ~solved_at[t]
+        if t % 4 == 3 or t == T - 1 or t < 4:  # print every 4th iter + first few
+            print(f"  {t:5d} | {solved_at[t].sum():6d} | {newly_solved.sum():5d} | {lost.sum():5d} | {ever_solved.sum():11d} | {ever_then_lost.sum():14d}")
+
+    print(f"\n  Summary:")
+    print(f"    Puzzles solved at iter 15 (training default): {solved_at[15].sum().item()}")
+    print(f"    Puzzles EVER solved across all {T} iters:     {ever_solved.sum().item()}")
+    ever_then_lost_final = ever_solved & ~solved_at[-1]
+    print(f"    Puzzles solved then lost by iter {T-1}:         {ever_then_lost_final.sum().item()}")
+    never_solved = ~ever_solved
+    print(f"    Puzzles NEVER solved at any iteration:        {never_solved.sum().item()}")
+
+    # EMA of predictions during inference
+    print(f"\n  === EMA of predictions (changes inference dynamics) ===")
+    for alpha in [0.3, 0.5, 0.7, 0.9]:
+        ema_logits_per_iter = [[] for _ in range(max_iters)]
+        with torch.no_grad(), ctx:
+            for start in range(0, n_total, batch_size):
+                end = min(start + batch_size, n_total)
+                batch_x = x_all[start:end]
+                batch_logits = run_with_ema(model, batch_x, max_iters, alpha)
+                for t in range(max_iters):
+                    ema_logits_per_iter[t].append(batch_logits[t])
+
+        ema_logits = torch.stack([torch.cat(il, dim=0) for il in ema_logits_per_iter])
+        ema_preds = ema_logits.argmax(dim=-1)
+
+        for fixed_t in [32, 48, 64]:
+            if fixed_t <= T:
+                compute_accuracy(ema_preds[fixed_t - 1], f"EMA α={alpha} @ {fixed_t} iters")
+
+        # Peak confidence on EMA run
+        ema_probs = F.softmax(ema_logits, dim=-1)
+        ema_max_probs = ema_probs.max(dim=-1).values
+        ema_masked = ema_max_probs * empty_masks_expanded.float()
+        ema_conf = ema_masked.sum(dim=2) / n_empty.unsqueeze(0)
+        ema_best = ema_conf.argmax(dim=0)
+        ema_peak_preds = ema_preds[ema_best, torch.arange(N)]
+        compute_accuracy(ema_peak_preds, f"EMA α={alpha} peak confidence")
+        print()
 
 
 if __name__ == "__main__":

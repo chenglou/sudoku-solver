@@ -87,6 +87,30 @@ def run_confidence_stop(exp_name: str, model_filename: str, max_iters: int):
     evaluate(model_path, exp_module=exp_name, max_iters=max_iters, device='cuda')
 
 
+@app.function(
+    image=image,
+    gpu="H200",
+    timeout=30 * 60,
+    volumes={
+        "/hf_cache": hf_cache_volume,
+        "/outputs": outputs_volume,
+    },
+)
+def run_fixed_point(exp_name: str, model_filename: str, n_iters: int):
+    import os
+    import sys
+
+    os.environ["HF_HOME"] = "/hf_cache"
+    os.environ["HF_DATASETS_CACHE"] = "/hf_cache/datasets"
+
+    sys.path.insert(0, "/root/project")
+
+    from eval_fixed_point import evaluate
+
+    model_path = f"/outputs/{model_filename}"
+    evaluate(model_path, exp_module=exp_name, n_repeat_iters=n_iters, device='cuda')
+
+
 @app.local_entrypoint()
 def main(
     exp: str = "exp_faster_2drope",
@@ -94,8 +118,12 @@ def main(
     mode: str = "analyze",
     iters: str = "16,32,48,64,96,128",
     max_iters: int = 64,
+    n_iters: int = 10,
 ):
-    if mode == "analyze":
+    if mode == "fixed_point":
+        print(f"Running fixed-point test: exp={exp}, model={model}, n_iters={n_iters}")
+        run_fixed_point.remote(exp_name=exp, model_filename=model, n_iters=n_iters)
+    elif mode == "analyze":
         print(f"Running analysis: exp={exp}, model={model}")
         run_analysis.remote(exp_name=exp, model_filename=model)
     elif mode == "more_iters":

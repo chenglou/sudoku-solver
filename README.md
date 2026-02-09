@@ -9,21 +9,8 @@ python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# Download dataset (choose one)
-# Option 1: Our training dataset (3M puzzles from Kaggle)
-mkdir -p data
-# Download from: https://www.kaggle.com/datasets/radcliffe/3-million-sudoku-puzzles-with-ratings
-# Place sudoku-3m.csv in data/
-
-# Option 2: Sudoku-extreme benchmark (auto-downloads from HuggingFace)
-# Used by: eval_extreme.py, exp_extreme_baseline.py
-
-# Train model
-# For Kaggle data:
-python exp_no_x_after_init.py
-
-# For sudoku-extreme data (new baseline):
-python exp_extreme_baseline.py
+# Train baseline (auto-downloads sudoku-extreme from HuggingFace)
+python exp_faster_2drope.py
 
 # Evaluate on sudoku-extreme benchmark
 python eval_extreme.py
@@ -39,15 +26,15 @@ For running on Modal's cloud GPUs:
 pip install modal
 modal token new  # authenticate (one-time)
 
-# Run experiment (detached so it survives terminal close)
-modal run --detach modal_run.py --exp exp_scale_batch_4k
+# Run baseline (detached so it survives terminal close)
+modal run --detach modal_run.py --exp exp_faster_2drope
 
 # Monitor progress
 modal app logs <app-id>  # app-id shown when you launch
 
 # List/download outputs
 modal volume ls sudoku-outputs
-modal volume get sudoku-outputs model_scale_batch_4k.pt .
+modal volume get sudoku-outputs model_faster_2drope.pt .
 ```
 
 Experiments must have a `train(output_dir=".")` function. Modal deps are in `requirements-modal.txt` (minimal, no local CUDA).
