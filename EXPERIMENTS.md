@@ -356,6 +356,12 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 | Cosine + Regular | 25k extreme | 80.6% | Easy→hard still hurts (-3.4pp) |
 | **Cosine - SAM** | 25k extreme | **83.6%** | **Recommended: 2x faster, -0.4pp** |
 | Cosine pos_once | 25k extreme | 82.8% | See [pos_embedding/](pos_embedding/EXPERIMENTS_POS.md) |
+| **Faster 2D RoPE** | 25k extreme | **82.5%** | New sudoku-agnostic baseline |
+| Faster 2D RoPE + 32 test iters | 25k extreme | 88.4% | Free +5.9pp from more test iters |
+| **Faster 2D RoPE + confidence stop** | 25k extreme | **91.5%** | **Per-puzzle adaptive stopping** |
+| Faster 2D RoPE + oscillation stop | 25k extreme | 91.1% | Causal/online-usable variant |
+| Q-head (16 iters) | 25k extreme | 79.4% | Q-loss hurts main task (-3.1pp) |
+| Q-head (32 iters) | 25k extreme | 78.4% | Q-loss + halved BS hurts more |
 
 ---
 
@@ -398,6 +404,12 @@ This result suggests that **difficulty levels are not strictly hierarchical** - 
 19. **Training data domain matters more than quantity** - Training on 400K sudoku-extreme puzzles achieves 63.4% on sudoku-extreme test, vs 31.7% from 2.7M Kaggle puzzles (+32pp with 7x less data). However, the Kaggle-trained model still wins on Kaggle test (89.9% vs 81.3%). Models specialize to their training domain rather than learning universal sudoku solving.
 
 20. **Cosine LR decay is the key technique** - After ruling out architecture (MLP-Mixer ≈ Transformer), model size (5M params hurts), fixed random init (-1.0pp), and carry across batches (diverged), we found that **cosine LR decay** is the critical technique. With warmup (78.5%) + cosine decay to 1% of peak LR, we achieve **84.0%** (+5.5pp). EMA (decay=0.999) **didn't help** (-1.0pp vs warmup). The cosine schedule allows the model to refine learned features in late training rather than continuing to jump around. Remaining gap to nano-trm (87.4%) reduced from 8.9pp to 3.4pp.
+
+21. **Test-time iteration scaling works** - Running a 16-iter trained model at 32 test iters gives 88.4% (+5.9pp) for free. The shared-weight iterative architecture naturally generalizes beyond its training iteration count, up to ~2x. Beyond that, predictions oscillate and accuracy collapses (48 iters: 72.4%, 64 iters: 20.8%).
+
+22. **Adaptive stopping surpasses nano-trm** - Per-puzzle stopping based on model confidence yields **91.5%**, beating nano-trm's 87.4% with only 800K params (vs 5M). Peak confidence (pick iteration with highest mean max-softmax over empty cells) and oscillation detection (stop when predictions form a 2-cycle, 91.1%) are both domain-agnostic — no sudoku-specific knowledge needed.
+
+23. **Learned halt signals don't work** - Training a Q-head (Linear(d_model, 1) on mean-pooled hidden state) to predict "done" hurts accuracy across the board. The Q-loss (BCE, weight 0.5) competes with the main CE loss, degrading predictions. The Q-head learns to fire too eagerly (99.7%+ accuracy), halting hard puzzles prematurely. Confidence-based heuristic stopping (91.5%) beats the best Q-head config (82.1%) by 9.4pp with zero additional training.
 
 ---
 
@@ -1729,3 +1741,123 @@ GPU 0 has a total capacity of 139.80 GiB of which 491.25 MiB is free.
 | 50K/800K | 800K | 50K | 82.8% |
 
 **Conclusion:** 1M params with 50K steps is pareto-optimal for balancing accuracy and step budget. Best choice when you want near-SOTA accuracy with fewer steps.
+
+---
+
+## Experiment: Test-Time Iteration Scaling (NEW BEST)
+
+**Files:** `eval_more_iters.py`, `eval_confidence_stop.py`
+
+**Hypothesis:** The model uses shared weights across 16 iterations. At test time, we can run more iterations with zero retraining. Does the model generalize beyond its training iteration count?
+
+**Setup:**
+- Use exp_faster_2drope model trained with 16 iterations
+- Run inference at 16, 32, 48, 64, 96, 128 iterations
+- No retraining, no architecture changes
+
+**Results (fixed iteration count):**
+
+| Iters | Rating 0 | 1-2 | 3-10 | 11-50 | 51+ | Total |
+|-------|----------|-----|------|-------|-----|-------|
+| 16 | 100.0% | 94.1% | 68.5% | 69.8% | 80.0% | 82.5% |
+| **32** | 100.0% | 98.3% | 77.8% | 78.4% | 87.7% | **88.4%** |
+| 48 | 68.2% | 81.9% | 68.7% | 65.8% | 77.5% | 72.4% |
+| 64 | 2.4% | 19.5% | 30.1% | 26.7% | 25.4% | 20.8% |
+| 96 | — | — | — | — | — | 11.1% |
+| 128 | — | — | — | — | — | 9.0% |
+
+**Finding:** 32 iterations gives **88.4%** (+5.9pp over 16 iters) with zero retraining. The model naturally generalizes beyond its training iterations. However, it diverges past 48 — predictions start oscillating and accuracy collapses.
+
+**Why 32 works but 48+ fails:** The iterative refinement loop with shared weights acts like a dynamical system. Near the training regime (16 iters), the system is stable and continues converging. Beyond ~2x training iterations, the system enters unstable oscillation — predictions flip back and forth without converging.
+
+---
+
+## Experiment: Adaptive Stopping Strategies (NEW BEST)
+
+**File:** `eval_confidence_stop.py`
+
+**Hypothesis:** Since different puzzles converge at different iterations, can we stop each puzzle at its optimal iteration instead of using a fixed count? The model's own confidence (max softmax probability) should indicate when it's most certain.
+
+**Setup:**
+- Run all 64 iterations on exp_faster_2drope model
+- Collect logits at every iteration
+- Try multiple stopping strategies, all domain-agnostic (no sudoku-specific logic)
+
+**Strategies tested:**
+
+1. **Peak confidence** — for each puzzle, pick the iteration with highest mean max-softmax over empty cells (oracle: requires running all iterations, then selecting best retroactively)
+2. **Confidence drop** — stop at the first iteration where smoothed confidence decreases (causal: can stop early)
+3. **Oscillation detection** — stop when predictions at iteration t match predictions at iteration t-2, indicating a 2-cycle (causal: can stop early)
+
+**Results:**
+
+| Method | Total | Rating 0 | 1-2 | 3-10 | 11-50 | 51+ |
+|--------|-------|----------|-----|------|-------|-----|
+| Fixed 16 iters | 82.5% | 100.0% | 94.1% | 68.5% | 69.8% | 80.0% |
+| Fixed 32 iters | 88.4% | 100.0% | 98.3% | 77.8% | 78.4% | 87.7% |
+| Confidence drop (smoothed, 16+) | 85.1% | 100.0% | 96.1% | 72.8% | 73.6% | 83.1% |
+| Oscillation detection (2-cycle, 16+) | 91.1% | 100.0% | 99.4% | 82.6% | 82.8% | 90.8% |
+| **Peak confidence** | **91.5%** | 100.0% | 99.4% | 83.2% | 83.4% | 91.2% |
+| Fixed 48 iters | 72.4% | 68.2% | 81.9% | 68.7% | 65.8% | 77.5% |
+| Fixed 64 iters | 20.8% | 2.4% | 19.5% | 30.1% | 26.7% | 25.4% |
+
+**Iteration distribution (peak confidence):**
+- Most puzzles (80%) peak at iters 0-15 — easy puzzles converge fast
+- Remaining 20% spread across iters 16-63 — hard puzzles need more thinking time
+- This confirms per-puzzle stopping is better than any fixed count
+
+**Key findings:**
+
+1. **Peak confidence: 91.5%** — best result overall, surpasses nano-trm's 87.4%. But requires running all iterations and selecting retroactively (oracle).
+2. **Oscillation detection: 91.1%** — nearly as good and is causal (can actually stop early during inference, saving compute on easy puzzles).
+3. **Confidence drop: 85.1%** — too aggressive, stops too early on many puzzles.
+4. All strategies are completely **domain-agnostic** — they use only the model's own softmax confidence, no sudoku-specific knowledge.
+
+**Note:** We also tested a constraint-based strategy (pick iteration with fewest sudoku row/col/box violations, break ties by confidence) which tied peak confidence at 91.5%. We chose not to pursue it since it relies on sudoku-specific domain knowledge, while the confidence-based strategies are fully domain-agnostic and work equally well.
+
+**Why this works:** The model's confidence is a reliable signal for convergence. When the model is most confident, it's most likely correct. As predictions start oscillating in later iterations, confidence drops. Peak confidence naturally picks the "sweet spot" before divergence, and it's different for each puzzle.
+
+---
+
+## Experiment: Q-head (Learned Halt Signal) — Negative Result
+
+**Files:** `exp_qhead.py` (16 iters), `exp_qhead_32.py` (32 iters)
+
+**Hypothesis:** Instead of heuristic stopping, train the model to predict when it's done. Add a Q-head (linear probe on mean-pooled hidden state) that outputs a "done" signal. Train with BCE loss where target = all empty cells correct.
+
+**Architecture:**
+```python
+self.q_head = nn.Linear(d_model, 1)  # on mean-pooled hidden state
+# Init: weight=0, bias=-5 (start pessimistic)
+# Loss: total_loss = ce_loss + 0.5 * q_loss
+# Target: 1 if all empty cells correct at this iteration, else 0
+```
+
+**Setup:**
+- exp_qhead: 16 iterations, BS=4096, 50K steps
+- exp_qhead_32: 32 iterations, BS=2048 (halved for memory), 50K steps
+
+**Results:**
+
+| Experiment | Config | Total |
+|------------|--------|-------|
+| Baseline (no Q-head) | 16 iters | 82.5% |
+| Baseline (no Q-head) | 32 test iters | 88.4% |
+| Q-head (16 iters train) | 16 iters | 79.4% |
+| Q-head (32 iters train) | 32 iters | 78.4% |
+| Q-head (32 iters train) | 48 iters, no stop | 82.1% |
+| Q-head (32 iters train) | 48 iters, Q-head stop | 65.9% |
+
+**Finding:** Q-head **hurts accuracy** in every configuration.
+
+**Why it failed:**
+
+1. **Loss competition** — the 0.5x Q-loss weight competed with the main CE loss, degrading the primary task. The model learned slightly worse predictions to accommodate the Q-head objective.
+
+2. **Q-head too eager** — Q-head achieved 99.7%+ accuracy at predicting "done", meaning it fires almost immediately. On hard puzzles that need more iterations, it halts too early (48 iters with Q-head stop: 65.9% vs 82.1% without).
+
+3. **Training with 32 iters didn't help** — despite training with 2x iterations, the 32-iter model (78.4%) was much worse than simply running the 16-iter baseline at 32 test iters (88.4%). The halved batch size and Q-loss degraded learning.
+
+4. **Fundamental mismatch** — the Q-head learns to predict the training distribution well (when are puzzles solved during training) but this doesn't transfer to useful early stopping at test time. The confidence-based heuristic, which directly measures the model's certainty, works much better.
+
+**Conclusion:** Learned halt signals don't work for this architecture. Confidence-based heuristic stopping (91.5%) beats the best Q-head configuration (82.1%) by 9.4pp while requiring zero additional training.
