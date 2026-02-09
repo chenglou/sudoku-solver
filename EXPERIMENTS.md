@@ -1746,7 +1746,7 @@ GPU 0 has a total capacity of 139.80 GiB of which 491.25 MiB is free.
 
 ## Experiment: Test-Time Iteration Scaling (NEW BEST)
 
-**Files:** `eval_more_iters.py`, `eval_confidence_stop.py`
+**Files:** `iters/eval_more_iters.py`, `iters/eval_confidence_stop.py`
 
 **Hypothesis:** The model uses shared weights across 16 iterations. At test time, we can run more iterations with zero retraining. Does the model generalize beyond its training iteration count?
 
@@ -1774,7 +1774,7 @@ GPU 0 has a total capacity of 139.80 GiB of which 491.25 MiB is free.
 
 ## Experiment: Adaptive Stopping Strategies (NEW BEST)
 
-**File:** `eval_confidence_stop.py`
+**File:** `iters/eval_confidence_stop.py`
 
 **Hypothesis:** Since different puzzles converge at different iterations, can we stop each puzzle at its optimal iteration instead of using a fixed count? The model's own confidence (max softmax probability) should indicate when it's most certain.
 
@@ -1821,7 +1821,7 @@ GPU 0 has a total capacity of 139.80 GiB of which 491.25 MiB is free.
 
 ## Experiment: Q-head (Learned Halt Signal) — Negative Result
 
-**Files:** `exp_qhead.py` (16 iters), `exp_qhead_32.py` (32 iters)
+**Files:** `iters/exp_qhead.py` (16 iters), `iters/exp_qhead_32.py` (32 iters)
 
 **Hypothesis:** Instead of heuristic stopping, train the model to predict when it's done. Add a Q-head (linear probe on mean-pooled hidden state) that outputs a "done" signal. Train with BCE loss where target = all empty cells correct.
 

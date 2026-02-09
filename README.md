@@ -56,8 +56,7 @@ tensorboard --logdir runs/
 - `exp_cosine.py` - Highest accuracy (sudoku pos): cosine LR + SAM (84.0%)
 - `checkpoint_utils.py` - Checkpoint save/resume utilities (Modal preemption-safe)
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
-- `eval_more_iters.py` - Test model at different iteration counts (no retraining)
-- `eval_confidence_stop.py` - Confidence-based and oscillation-based adaptive stopping (no retraining)
+- `iters/` - Iteration experiments: 32-iter training, adaptive stopping, fixed-point analysis, and [results](iters/EXPERIMENTS_ITERS.md)
 - `analyze_failures_new.py` - Per-iteration failure analysis (convergence, oscillation, per-position stats)
 - `test_data.py` - Test data loader using test.csv (matches nano-trm for fair comparison)
 - `EXPERIMENTS.md` - Full experiment log and results

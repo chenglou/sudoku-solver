@@ -56,7 +56,7 @@ def run_more_iters(exp_name: str, model_filename: str, iters: str):
 
     sys.path.insert(0, "/root/project")
 
-    from eval_more_iters import evaluate
+    from iters.eval_more_iters import evaluate
 
     iter_counts = [int(x) for x in iters.split(",")]
     model_path = f"/outputs/{model_filename}"
@@ -81,7 +81,7 @@ def run_confidence_stop(exp_name: str, model_filename: str, max_iters: int):
 
     sys.path.insert(0, "/root/project")
 
-    from eval_confidence_stop import evaluate
+    from iters.eval_confidence_stop import evaluate
 
     model_path = f"/outputs/{model_filename}"
     evaluate(model_path, exp_module=exp_name, max_iters=max_iters, device='cuda')
@@ -105,7 +105,7 @@ def run_fixed_point(exp_name: str, model_filename: str, n_iters: int):
 
     sys.path.insert(0, "/root/project")
 
-    from eval_fixed_point import evaluate
+    from iters.eval_fixed_point import evaluate
 
     model_path = f"/outputs/{model_filename}"
     evaluate(model_path, exp_module=exp_name, n_repeat_iters=n_iters, device='cuda')
