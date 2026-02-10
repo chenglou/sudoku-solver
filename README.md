@@ -9,11 +9,11 @@ python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# Train baseline (auto-downloads sudoku-extreme from HuggingFace)
-python exp_faster_2drope.py
+# Train SOTA model (auto-downloads sudoku-extreme from HuggingFace)
+python iters/exp_bs2048_baseline.py
 
-# Evaluate on sudoku-extreme benchmark
-python eval_extreme.py
+# Evaluate at 1024 test-time iterations (98.1%)
+python -c "from iters.eval_more_iters import evaluate; evaluate('model_bs2048_baseline.pt', exp_module='iters.exp_bs2048_baseline', iter_counts=[1024])"
 ```
 
 The training code can run on any GPU and provider, agnostically. I'm personally using Modal, with a small wrapper script (`modal_run.py`) that you don't have to use.
@@ -26,15 +26,18 @@ For running on Modal's cloud GPUs:
 pip install modal
 modal token new  # authenticate (one-time)
 
-# Run baseline (detached so it survives terminal close)
-modal run --detach modal_run.py --exp exp_faster_2drope
+# Train SOTA (detached so it survives terminal close)
+modal run --detach modal_run.py --exp iters.exp_bs2048_baseline
 
 # Monitor progress
 modal app logs <app-id>  # app-id shown when you launch
 
 # List/download outputs
 modal volume ls sudoku-outputs
-modal volume get sudoku-outputs model_faster_2drope.pt .
+modal volume get sudoku-outputs model_bs2048_baseline.pt .
+
+# Evaluate at 1024 test-time iterations
+modal run modal_analyze.py --mode more_iters --exp iters.exp_bs2048_baseline --model model_bs2048_baseline.pt --iters 1024
 ```
 
 Experiments must have a `train(output_dir=".")` function. Modal deps are in `requirements-modal.txt` (minimal, no local CUDA).
@@ -51,9 +54,7 @@ tensorboard --logdir runs/
 
 ## Key Files
 
-- `exp_faster_2drope.py` - **Baseline**: 2D RoPE, 800K params, BS=4096, cosine LR (82.5%, 91.1% with adaptive stopping)
-- `exp_cosine_no_sam.py` - Previous best with sudoku pos encoding: cosine LR, no SAM (83.6%)
-- `exp_cosine.py` - Highest accuracy (sudoku pos): cosine LR + SAM (84.0%)
+- `iters/exp_bs2048_baseline.py` - **SOTA**: 2D RoPE, 800K params, BS=2048, cosine LR (98.1% at 1024 test iters)
 - `checkpoint_utils.py` - Checkpoint save/resume utilities (Modal preemption-safe)
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
 - `iters/` - Iteration experiments: 32-iter training, adaptive stopping, fixed-point analysis, and [results](iters/EXPERIMENTS_ITERS.md)
@@ -82,11 +83,8 @@ test_data = load_test_csv(max_per_bucket=5000, device=device)
 
 | Model | Params | Pos Encoding | GPU | Accuracy |
 |-------|--------|--------------|-----|----------|
-| **exp_faster_2drope + oscillation stop** | 800K | 2D RoPE | H200 | **91.1%** |
-| exp_faster_2drope + peak confidence (oracle) | 800K | 2D RoPE | H200 | 91.5% |
-| **exp_faster_2drope** (baseline) | 800K | 2D RoPE | H200 | 82.5% |
-| exp_cosine_no_sam | 800K | row+col+box | H200 | 83.6% |
-| exp_cosine | 800K | row+col+box | H200 | 84.0% |
+| **exp_bs2048_baseline (1024 test iters)** | 800K | 2D RoPE | H200 | **98.1%** |
+| exp_bs2048_baseline (16 test iters) | 800K | 2D RoPE | H200 | 81.4% |
 | [nano-trm](https://github.com/olivkoch/nano-trm) (reference) | 5M | — | — | 87.4% |
 
-The baseline uses sudoku-agnostic 2D RoPE (only knows it's a grid, no constraint structure). At test time, running extra iterations with per-puzzle oscillation detection (stop when predictions start cycling) yields **91.1%**, surpassing nano-trm with no retraining. Peak confidence selection (oracle, pick best iteration retroactively) reaches 91.5%. See [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis, [pos_embedding/](pos_embedding/EXPERIMENTS_POS.md) for positional encoding comparisons.
+The model uses sudoku-agnostic 2D RoPE (only knows it's a grid, no constraint structure). Training with BS=2048 produces a model that scales monotonically with test-time iterations — running 1024 iterations at test time (vs 16 during training) yields **98.1%** with no retraining and no collapse. BS=2048 hits a sweet spot: BS=4096 collapses at 48 iters, BS=1024 collapses at 256 iters, but BS=2048 never collapses. See [iters/](iters/EXPERIMENTS_ITERS.md) for the full iteration scaling table, [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis, [pos_embedding/](pos_embedding/EXPERIMENTS_POS.md) for positional encoding comparisons.

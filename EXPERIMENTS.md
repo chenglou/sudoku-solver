@@ -1861,3 +1861,27 @@ self.q_head = nn.Linear(d_model, 1)  # on mean-pooled hidden state
 4. **Fundamental mismatch** — the Q-head learns to predict the training distribution well (when are puzzles solved during training) but this doesn't transfer to useful early stopping at test time. The confidence-based heuristic, which directly measures the model's certainty, works much better.
 
 **Conclusion:** Learned halt signals don't work for this architecture. Confidence-based heuristic stopping (91.5%) beats the best Q-head configuration (82.1%) by 9.4pp while requiring zero additional training.
+
+---
+
+## Experiment: Batch Size Confound Isolation (NEW SOTA)
+
+**Files:** `iters/exp_bs2048_baseline.py`, `iters/exp_bs2048_mixed.py`, `iters/exp_bs1024_curriculum.py`, `iters/exp_32iters_curriculum.py`
+
+**Hypothesis:** The BS=2048 baseline (exp_bs2048_baseline) scales to 98.1% at 1024 test iters without collapsing, while BS=4096 collapses at 48 iters. But the 32-iter experiment (exp_32iters) used mixed sampling while the baseline used reverse curriculum — is the stability from batch size, sampling strategy, or training iterations?
+
+**Setup:** Three confound-isolation experiments, each changing one variable from the BS=2048 baseline (control): mixed sampling (isolates curriculum), BS=1024 (isolates batch size), 32-iter + curriculum (isolates training iters). See [iters/EXPERIMENTS_ITERS.md](iters/EXPERIMENTS_ITERS.md) for the full iteration scaling table.
+
+**Findings:**
+
+1. **BS=2048 is the key ingredient** — both BS=2048 models (curriculum and mixed) scale to 1024+ iters without collapsing. Curriculum gives a tiny edge (~0.8pp at 1024) but the stability comes from batch size alone.
+
+2. **Sampling strategy doesn't matter** — curriculum vs mixed is near-identical at every iteration count. This holds for both 16-iter training (81.4% vs 81.2%) and 32-iter training (83.1% vs 83.0%).
+
+3. **BS=1024 is too small** — lower base accuracy (79.7%) and collapses at 256 iters. Smaller batch doesn't mean more stability; there's a sweet spot.
+
+4. **32-iter training hurts iteration scaling** — both 32-iter models collapse past 128-256 iters regardless of sampling strategy. The 32-iter curriculum model is even worse than mixed (collapses at 128 vs 256).
+
+5. **SOTA: 98.2%** at 2048 test iters, still climbing with no collapse. This is 800K params, 6x smaller than nano-trm (87.4%).
+
+**Why BS=2048 works:** Smaller batches produce noisier gradients, which act as implicit regularization pushing the model toward flatter minima. A model in a flat minimum is more robust to perturbations in its iterative dynamics — each iteration of f introduces small errors, and a flat loss landscape means these errors don't compound. BS=4096 finds a sharper minimum with higher base accuracy but amplifies errors across iterations. BS=1024 has too much noise and underfits.
