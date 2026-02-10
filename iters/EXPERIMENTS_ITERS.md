@@ -39,11 +39,33 @@ All models trained for 50K steps. Accuracy at various test-time iteration counts
 | Q-head (16 iters) | 79.4% | Loss competition hurts main task |
 | Q-head (32 iters) | 78.4% | Same issue |
 
+## Fixed-Point Test
+
+**File:** `eval_fixed_point.py`
+
+Feed the correct solution (as one-hot softmax predictions) into f and check if it's preserved. If f were a contraction mapping, the correct solution should be a stable fixed point.
+
+| Model | Cells preserved | Puzzles perfectly preserved |
+|---|---|---|
+| BS=4096 baseline (16-iter) | 14.4% | 0/25000 |
+| 32-iter mixed | 47.6% | 0/25000 |
+
+**Finding:** The correct solution is NOT a fixed point for any model. f treats correct predictions as noise and re-solves from scratch. 32-iter training improves preservation (47.6% vs 14.4%) but still zero puzzles survive intact. This means the model has zero concept of "preserve what's already correct" — nothing in training incentivizes this.
+
+**Still untested:** Training with an explicit fixed-point loss (e.g., penalize f for changing cells that are already correct). This could teach f to be a contraction mapping.
+
+## Teacher Forcing (32-iter training) — Disproven
+
+**Hypothesis:** Training with 32 iterations acts as implicit teacher forcing — easy puzzles are solved by iter ~10, giving f 20+ iterations of "correct input → stay correct" signal. This should teach f to preserve correct solutions and improve iteration stability.
+
+**Result:** Disproven. Both 32-iter models (mixed and curriculum) collapse past 128-256 iters, while 16-iter BS=2048 models scale to 2048+ without collapsing. More training iterations actively hurts iteration scaling. The implicit "teacher forcing" signal from easy puzzles is too weak — f still learns to re-solve rather than preserve.
+
 ## Key Findings
 
 1. **BS=2048 is the sweet spot for iteration stability** — BS=4096 collapses at 48 iters, BS=1024 collapses at 256 iters, BS=2048 never collapses even at 2048 iters. Likely due to flatter minima from gradient noise.
 2. **Sampling strategy doesn't matter** — curriculum vs mixed gives near-identical results in all comparisons (81.4% vs 81.2% at 16 iters, 98.1% vs 97.3% at 1024 iters).
-3. **32-iter training hurts iteration scaling** — both 32-iter models collapse past 128-256 iters, while 16-iter BS=2048 models scale to 2048+. More training iterations does not teach stability.
-4. **SOTA: 98.2%** at 2048 test iters with BS=2048 baseline (still climbing, no collapse).
-5. **Correct solution is NOT a fixed point** — f destroys 85.6% of cells (baseline), 52.4% (32-iter trained).
+3. **32-iter training (teacher forcing) hurts iteration scaling** — both 32-iter models collapse past 128-256 iters, while 16-iter BS=2048 models scale to 2048+.
+4. **Correct solution is NOT a fixed point** — f destroys 85.6% of cells (baseline), 52.4% (32-iter trained). Explicit fixed-point training untested.
+5. **Convergence at BS=2048 is emergent** — the model converges monotonically without any explicit convergence loss. This likely comes from flat minima making f naturally contractive.
 6. **Q-head (learned halt) failed** — loss competition degrades main task.
+7. **SOTA: 98.2%** at 2048 test iters with BS=2048 baseline (still climbing, no collapse).
