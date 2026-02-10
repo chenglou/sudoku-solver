@@ -11,6 +11,7 @@ For training on Modal:
 - Local output stream can die while Modal worker continues. Check `modal container list` and `modal volume ls` for true status
 - `modal app logs` streams only while the app is active (per Modal docs). For detached/finished runs, query the output log file from the volume (poll with `modal volume get`).
 - Keep training code Modal-agnostic: pass `output_dir` param, Modal wrapper sets it to volume path
+- Don't pipe `modal run --detach` through `tail`, `head`, etc. — the detached stream stays open, so buffering commands hang forever waiting for EOF
 
 For torch.compile:
 
