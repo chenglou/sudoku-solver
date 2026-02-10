@@ -39,26 +39,24 @@ All models trained for 50K steps. Accuracy at various test-time iteration counts
 | Q-head (16 iters) | 79.4% | Loss competition hurts main task |
 | Q-head (32 iters) | 78.4% | Same issue |
 
-## Fixed-Point Test
+## Teacher Forcing — Disproven
 
-**File:** `eval_fixed_point.py`
+Both test-time and training-time teacher forcing were tested. Neither works.
 
-Feed the correct solution (as one-hot softmax predictions) into f and check if it's preserved. If f were a contraction mapping, the correct solution should be a stable fixed point.
+**Test-time teacher forcing (fixed-point test):** Feed the correct solution (as one-hot softmax predictions) directly into f and check if it's preserved. (`eval_fixed_point.py`)
 
 | Model | Cells preserved | Puzzles perfectly preserved |
 |---|---|---|
 | BS=4096 baseline (16-iter) | 14.4% | 0/25000 |
 | 32-iter mixed | 47.6% | 0/25000 |
 
-**Finding:** The correct solution is NOT a fixed point for any model. f treats correct predictions as noise and re-solves from scratch. 32-iter training improves preservation (47.6% vs 14.4%) but still zero puzzles survive intact. This means the model has zero concept of "preserve what's already correct" — nothing in training incentivizes this.
+f destroys the correct solution — it treats correct predictions as noise and re-solves from scratch. The model has zero concept of "preserve what's already correct."
 
-**Still untested:** Training with an explicit fixed-point loss (e.g., penalize f for changing cells that are already correct). This could teach f to be a contraction mapping.
+**Training-time teacher forcing (32-iter training):** Train with 32 iterations so easy puzzles are solved by iter ~10, giving f 20+ iterations of "correct input → stay correct" signal.
 
-## Teacher Forcing (32-iter training) — Disproven
+Both 32-iter models (mixed and curriculum) collapse past 128-256 test iters, while 16-iter BS=2048 models scale to 2048+. The implicit teacher forcing signal is too weak — f still learns to re-solve rather than preserve.
 
-**Hypothesis:** Training with 32 iterations acts as implicit teacher forcing — easy puzzles are solved by iter ~10, giving f 20+ iterations of "correct input → stay correct" signal. This should teach f to preserve correct solutions and improve iteration stability.
-
-**Result:** Disproven. Both 32-iter models (mixed and curriculum) collapse past 128-256 iters, while 16-iter BS=2048 models scale to 2048+ without collapsing. More training iterations actively hurts iteration scaling. The implicit "teacher forcing" signal from easy puzzles is too weak — f still learns to re-solve rather than preserve.
+**Still untested:** Explicit fixed-point loss (penalize f for changing cells that are already correct). This would be a stronger signal than implicit teacher forcing.
 
 ## Key Findings
 
