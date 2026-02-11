@@ -42,7 +42,8 @@ def run_eval(exp_name: str, model_name: str, iter_counts_str: str = "16,32,64,12
     model_path = os.path.join("/outputs", model_name)
     iter_counts = [int(x) for x in iter_counts_str.split(",")]
 
-    evaluate(model_path, exp_module=exp_name, iter_counts=iter_counts, device='cuda')
+    evaluate(model_path, exp_module=exp_name, iter_counts=iter_counts, device='cuda',
+             output_dir="/outputs")
 
 
 @app.local_entrypoint()

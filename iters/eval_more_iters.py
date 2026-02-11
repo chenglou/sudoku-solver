@@ -21,7 +21,21 @@ RATING_BUCKETS = [
 
 
 def evaluate(model_path, exp_module='exp_faster_2drope', iter_counts=[16, 32, 64, 128],
-             max_test=5000, device='cuda'):
+             max_test=5000, device='cuda', output_dir=None):
+    import os
+
+    log_file = None
+    if output_dir:
+        model_name = os.path.basename(model_path).replace(".pt", "")
+        log_path = os.path.join(output_dir, f"{model_name}_eval.log")
+        log_file = open(log_path, "w")
+
+    def log(msg):
+        print(msg)
+        if log_file:
+            log_file.write(msg + "\n")
+            log_file.flush()
+
     mod = importlib.import_module(exp_module)
 
     device = torch.device(device if torch.cuda.is_available() else 'cpu')
@@ -35,7 +49,7 @@ def evaluate(model_path, exp_module='exp_faster_2drope', iter_counts=[16, 32, 64
     model.eval()
 
     # Load test data
-    print("Loading test data...")
+    log("Loading test data...")
     test_dataset = load_dataset("sapientinc/sudoku-extreme", split="test")
 
     buckets = {}
@@ -65,7 +79,7 @@ def evaluate(model_path, exp_module='exp_faster_2drope', iter_counts=[16, 32, 64
 
     x_all = mod.encode_puzzles(all_puzzles).to(device)
     n_total = len(all_puzzles)
-    print(f"Total test puzzles: {n_total}\n")
+    log(f"Total test puzzles: {n_total}\n")
 
     # Build solution targets
     solution_targets = []
@@ -95,9 +109,9 @@ def evaluate(model_path, exp_module='exp_faster_2drope', iter_counts=[16, 32, 64
         return logits
 
     batch_size = 256
-    print(f"{'Iters':>5} | {'Total Solved':>12} | {'Acc':>6} | {'Time':>6} | " +
-          " | ".join(f"{b[2]:>5}" for b in RATING_BUCKETS))
-    print("-" * 80)
+    log(f"{'Iters':>5} | {'Total Solved':>12} | {'Acc':>6} | {'Time':>6} | " +
+        " | ".join(f"{b[2]:>5}" for b in RATING_BUCKETS))
+    log("-" * 80)
 
     for n_iters in iter_counts:
         all_preds = []
@@ -137,8 +151,11 @@ def evaluate(model_path, exp_module='exp_faster_2drope', iter_counts=[16, 32, 64
             s, t = bucket_results[name]
             bucket_strs.append(f"{100*s/t:5.1f}%")
 
-        print(f"{n_iters:5d} | {total_solved:5d}/{n_total} | {acc:5.1f}% | {t_elapsed:5.1f}s | " +
-              " | ".join(bucket_strs))
+        log(f"{n_iters:5d} | {total_solved:5d}/{n_total} | {acc:5.1f}% | {t_elapsed:5.1f}s | " +
+            " | ".join(bucket_strs))
+
+    if log_file:
+        log_file.close()
 
 
 if __name__ == "__main__":
