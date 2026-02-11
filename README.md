@@ -10,10 +10,10 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Train SOTA model (auto-downloads sudoku-extreme from HuggingFace)
-python iters/exp_bs2048_baseline.py
+python iters/exp_baseline_lr2e3.py
 
-# Evaluate at 1024 test-time iterations (98.1%)
-python -c "from iters.eval_more_iters import evaluate; evaluate('model_bs2048_baseline.pt', exp_module='iters.exp_bs2048_baseline', iter_counts=[1024])"
+# Evaluate at 1024 test-time iterations (98.9%)
+python -c "from iters.eval_more_iters import evaluate; evaluate('model_baseline_lr2e3.pt', exp_module='iters.exp_baseline_lr2e3', iter_counts=[1024])"
 ```
 
 The training code can run on any GPU and provider, agnostically. I'm personally using Modal, with a small wrapper script (`modal_run.py`) that you don't have to use.
@@ -27,17 +27,17 @@ pip install modal
 modal token new  # authenticate (one-time)
 
 # Train SOTA (detached so it survives terminal close)
-modal run --detach modal_run.py --exp iters.exp_bs2048_baseline
+modal run --detach modal_run.py --exp iters.exp_baseline_lr2e3
 
 # Monitor progress
 modal app logs <app-id>  # app-id shown when you launch
 
 # List/download outputs
 modal volume ls sudoku-outputs
-modal volume get sudoku-outputs model_bs2048_baseline.pt .
+modal volume get sudoku-outputs model_baseline_lr2e3.pt .
 
 # Evaluate at 1024 test-time iterations
-modal run modal_analyze.py --mode more_iters --exp iters.exp_bs2048_baseline --model model_bs2048_baseline.pt --iters 1024
+modal run modal_eval.py --exp iters.exp_baseline_lr2e3 --model model_baseline_lr2e3.pt --iters 1024
 ```
 
 Experiments must have a `train(output_dir=".")` function. Modal deps are in `requirements-modal.txt` (minimal, no local CUDA).
@@ -54,7 +54,7 @@ tensorboard --logdir runs/
 
 ## Key Files
 
-- `iters/exp_bs2048_baseline.py` - **SOTA**: 2D RoPE, 800K params, BS=2048, cosine LR (98.1% at 1024 test iters)
+- `iters/exp_baseline_lr2e3.py` - **SOTA**: 2D RoPE, 800K params, BS=2048, LR=2e-3 (98.9% at 1024 test iters)
 - `checkpoint_utils.py` - Checkpoint save/resume utilities (Modal preemption-safe)
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
 - `iters/` - Iteration experiments: 32-iter training, adaptive stopping, fixed-point analysis, and [results](iters/EXPERIMENTS_ITERS.md)
@@ -83,8 +83,8 @@ test_data = load_test_csv(max_per_bucket=5000, device=device)
 
 | Model | Params | Pos Encoding | GPU | Accuracy |
 |-------|--------|--------------|-----|----------|
-| **exp_bs2048_baseline (1024 test iters)** | 800K | 2D RoPE | H200 | **98.1%** |
-| exp_bs2048_baseline (16 test iters) | 800K | 2D RoPE | H200 | 81.4% |
+| **exp_baseline_lr2e3 (1024 test iters)** | 800K | 2D RoPE | H200 | **98.9%** |
+| exp_baseline_lr2e3 (16 test iters) | 800K | 2D RoPE | H200 | 81.8% |
 | [nano-trm](https://github.com/olivkoch/nano-trm) (reference) | 5M | — | — | 87.4% |
 
-The model uses sudoku-agnostic 2D RoPE (only knows it's a grid, no constraint structure). Training with BS=2048 produces a model that scales monotonically with test-time iterations — running 1024 iterations at test time (vs 16 during training) yields **98.1%** with no retraining and no collapse. BS=2048 hits a sweet spot: BS=4096 collapses at 48 iters, BS=1024 collapses at 256 iters, but BS=2048 never collapses. See [iters/](iters/EXPERIMENTS_ITERS.md) for the full iteration scaling table, [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis, [pos_embedding/](pos_embedding/EXPERIMENTS_POS.md) for positional encoding comparisons.
+The model uses sudoku-agnostic 2D RoPE (only knows it's a grid, no constraint structure). Training with BS=2048 produces a model that scales monotonically with test-time iterations — running 1024 iterations at test time (vs 16 during training) yields **98.9%** with no retraining and no collapse. LR is the most important hyperparameter for iteration scaling: LR=2e-3 > 1.5e-3 >> 1e-3 (collapses). See [iters/](iters/EXPERIMENTS_ITERS.md) for the full iteration scaling table, [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis, [pos_embedding/](pos_embedding/EXPERIMENTS_POS.md) for positional encoding comparisons.

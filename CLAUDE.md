@@ -1,3 +1,5 @@
+See README.md for current SOTA, key files, and results.
+
 Don't forget to source venv before doing python commands
 
 For training on Modal:
