@@ -21,9 +21,12 @@ See the main [EXPERIMENTS.md](../EXPERIMENTS.md) for full results.
 - `exp_bs2048_fp_copy.py` - FP: self-consistency copy loss (negative result)
 - `exp_bs2048_fp_gradmask.py` - FP: gradient masking on correct cells (negative result)
 - `exp_wider_6h.py` - d_model=192, 6 heads (tests wider model)
+- `exp_wider_6h_lr2e3.py` - d_model=192, LR=2e-3 (peaks at 64 iters, collapses at 128)
 - `exp_wider_6h_lowlr.py` - d_model=192, LR=1e-3 (tests if lower LR fixes wider collapse)
 - `exp_smaller_3h.py` - d_model=96, 3 heads (tests smaller model)
 - `exp_baseline_lr2e3.py` - LR=2e-3 (**NEW SOTA: 98.9%** at 1024 test iters)
+- `exp_baseline_lr25e4.py` - LR=2.5e-3 (collapses at 128 iters)
+- `exp_baseline_lr3e3.py` - LR=3e-3 (collapses at 64 iters)
 - `exp_baseline_lr1e3.py` - LR=1e-3 (collapses at 128 iters)
 - `exp_3phase_40k.py` - 3-phase curriculum, 40K steps (stable but lower ceiling)
 - `exp_3phase_50k.py` - 3-phase curriculum, 50K steps (collapses)
@@ -39,7 +42,10 @@ Accuracy at various test-time iteration counts:
 |---|---|---|---|---|---|---|---|---|---|
 | **exp_baseline_lr2e3** | **LR=2e-3 (NEW SOTA)** | **81.8%** | **88.5%** | **92.5%** | **95.3%** | **97.3%** | **98.5%** | **98.9%** | **98.8%** |
 | exp_bs2048_baseline | LR=1.5e-3 (prev SOTA) | 81.4% | 88.1% | 92.4% | 94.9% | 96.6% | 97.5% | 98.1% | 98.2% |
+| exp_baseline_lr25e4 | LR=2.5e-3 | 81.8% | 87.7% | 90.7% | 84.1% | 50.5% | 4.5% | 0.1% | — |
+| exp_baseline_lr3e3 | LR=3e-3 | 82.1% | 88.5% | 39.9% | 7.1% | 1.7% | 0.9% | 0.4% | — |
 | exp_baseline_lr1e3 | LR=1e-3 | 80.9% | 87.2% | 90.9% | 89.8% | 80.2% | 50.2% | 20.8% | 5.3% |
+| exp_wider_6h_lr2e3 | d=192, LR=2e-3 | 84.4% | 90.8% | 94.3% | 85.9% | 23.3% | 6.9% | 3.5% | — |
 | exp_wider_6h | d=192, LR=1.5e-3 | 84.7% | 91.3% | 64.2% | 28.2% | 11.5% | 4.5% | 1.1% | — |
 | exp_wider_6h_lowlr | d=192, LR=1e-3 | 84.1% | 90.8% | 94.5% | 94.7% | 8.2% | 0.9% | 0.1% | 0.0% |
 | exp_smaller_3h | d=96, 3 heads | 76.8% | 83.0% | 86.5% | 87.8% | 87.7% | 87.4% | 86.4% | 73.2% |
@@ -103,6 +109,19 @@ The baseline with no fixed-point loss reaches 98.1% at 1024 iters. Every explici
 
 Training for 100K steps with cosine decay stretched over 100K (exp_bs2048_100k) collapses at 64 test iters. The step-50K checkpoint already collapses — confirming the cause is the stretched LR schedule (LR still high at step 50K), not overtraining. The baseline's 50K cosine fully anneals by training end, enabling the flat minimum.
 
+## Conditions for Stable Iteration Scaling
+
+Stable test-time iteration scaling (more iters → monotonically better accuracy) requires all of the following:
+
+1. **LR in a narrow band** — for d=128, only LR=1.5e-3 to 2e-3 works. Both higher (2.5e-3, 3e-3) and lower (1e-3) collapse. The optimum is sharp at 2e-3.
+2. **BS=2048** — BS=4096 collapses at 48 iters (too little gradient noise → sharp minima), BS=1024 at 256 (too much noise). The right noise level finds flat minima where f is naturally contractive.
+3. **Small enough model** — d=128 scales to 1024+. d=192 collapses at every LR tested. d=96 peaks early and slowly degrades. More capacity makes the iteration map harder to keep contractive.
+4. **Full LR annealing** — cosine schedule must decay to near-zero by training end. Stretched schedules (100K steps) or redistributed phase durations collapse because LR is still high late in training.
+5. **Short training iterations (16)** — 32-iter training collapses at 128-256 test iters despite giving the model more "teacher forcing" signal. Fewer training iters are better for test-time scaling.
+6. **No explicit fixed-point pressure** — all 4 variants (preservation weighting, L2 toward target, self-consistency, gradient masking) hurt. Contractivity emerges naturally from flat minima; explicit pressure disrupts it.
+
+The overall picture: stability comes from landing in a flat minimum where f is naturally contractive. Gradient noise (BS), learning rate, and model capacity all control whether training finds that minimum. It's a narrow target — most hyperparameter changes break it.
+
 ## Key Findings
 
 1. **BS=2048 is the sweet spot for iteration stability** — BS=4096 collapses at 48 iters, BS=1024 collapses at 256 iters, BS=2048 never collapses even at 2048 iters. Likely due to flatter minima from gradient noise.
@@ -111,8 +130,8 @@ Training for 100K steps with cosine decay stretched over 100K (exp_bs2048_100k) 
 4. **Model converges to an argmax-fixed-point** — at 1024 iterations, outputs are identical across consecutive steps (24513/25000 stable from iter 1022–1026). The cold-start fixed-point test was misleading — it used a cold h_prev, not the warm hidden state from iterative refinement.
 5. **Convergence is emergent** — the model converges monotonically without any explicit convergence loss. Flat minima from gradient noise (BS=2048) likely make f naturally contractive.
 6. **Explicit fixed-point losses all degrade iteration scaling** — 4 variants tested, all collapse earlier than baseline. The extra loss terms push the model away from the flat minimum.
-7. **LR is the most important hyperparameter for iteration scaling** — at d_model=128: LR=2e-3 (98.9%) > 1.5e-3 (98.1%) >> 1e-3 (collapses at 128). The relationship is non-monotonic — there's an optimal band, and too low is as bad as too high.
-8. **LR sweet spot depends on model size** — d=192 collapses at both LR=1.5e-3 (at 64 iters) and LR=1e-3 (at 256 iters). Wider models aren't inherently broken but need different LR tuning.
+7. **LR=2e-3 is the sharp optimum for iteration scaling** — at d_model=128: LR=3e-3 collapses at 64 iters, LR=2.5e-3 collapses at 128, LR=2e-3 scales to 1024 (98.9%), LR=1.5e-3 scales to 1024 (98.1%), LR=1e-3 collapses at 128. Higher LR makes the iteration map non-contractive earlier; lower LR lacks the gradient noise for flat minima.
+8. **Wider models (d=192) collapse regardless of LR** — LR=2e-3 peaks at 64 iters (94.3%, better per-iteration than d=128's 92.5%) but collapses at 128. LR=1e-3 collapses at 256, LR=1.5e-3 at 64. More capacity helps per-iteration but hurts fixed-point stability — the wider model's iteration map isn't contractive enough.
 9. **3-phase curriculum works if you keep phase durations** — dropping Medium+ with original durations (40K total) is stable at 95.9%, but redistributing to maintain 50K steps collapses because the LR schedule decays slower.
 10. **Smaller model (d=96) peaks early then degrades** — 87.8% at 128 iters, slowly degrades to 73.2% at 2048. Not enough capacity for clean convergence.
 11. **Q-head (learned halt) failed** — loss competition degrades main task.
