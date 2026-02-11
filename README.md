@@ -81,10 +81,10 @@ test_data = load_test_csv(max_per_bucket=5000, device=device)
 
 ## Results (sudoku-extreme benchmark)
 
-| Model | Params | Pos Encoding | GPU | Accuracy |
-|-------|--------|--------------|-----|----------|
-| **exp_baseline_lr2e3 (1024 test iters)** | 800K | 2D RoPE | H200 | **98.9%** |
-| exp_baseline_lr2e3 (16 test iters) | 800K | 2D RoPE | H200 | 81.8% |
-| [nano-trm](https://github.com/olivkoch/nano-trm) (reference) | 5M | — | — | 87.4% |
+| Model | Params | Training Time | Accuracy |
+|-------|--------|---------------|----------|
+| **exp_baseline_lr2e3 (1024 test iters)** | 800K | ~2h40m (H200) | **98.9%** |
+| exp_baseline_lr2e3 (16 test iters) | 800K | ~2h40m (H200) | 81.8% |
+| [TRM](https://github.com/SamsungSAILMontreal/TinyRecursiveModels) (reference) | 7M | ~18h (L40S) | ~87% |
 
 The model uses sudoku-agnostic 2D RoPE (only knows it's a grid, no constraint structure). Training with BS=2048 produces a model that scales monotonically with test-time iterations — running 1024 iterations at test time (vs 16 during training) yields **98.9%** with no retraining and no collapse. LR is the most important hyperparameter for iteration scaling: LR=2e-3 > 1.5e-3 >> 1e-3 (collapses). See [iters/](iters/EXPERIMENTS_ITERS.md) for the full iteration scaling table, [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis, [pos_embedding/](pos_embedding/EXPERIMENTS_POS.md) for positional encoding comparisons.
