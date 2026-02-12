@@ -33,7 +33,9 @@ See the main [EXPERIMENTS.md](../EXPERIMENTS.md) for full results.
 - `exp_qhead.py` - Q-head learned halt signal (16 iters, negative result)
 - `exp_qhead_32.py` - Q-head learned halt signal (32 iters, negative result)
 - `eval_interventions.py` - Test-time interventions (damping, pred scaling, pre-norm)
+- `eval_spectral_radius.py` - Jacobian spectral radius via power iteration
 - `modal_eval_interventions.py` - Modal wrapper for intervention sweeps
+- `modal_spectral_stable.py` - Modal wrapper for spectral radius + stable model interventions
 - `modal_eval.py` - Modal wrapper for running eval_more_iters on GPU
 
 ## Test-Time Iteration Scaling
@@ -157,15 +159,50 @@ Scripts: `eval_interventions.py`, `modal_eval_interventions.py`.
 | Pred_scale β=0.1 | 4.5% | 4.8% | 4.9% | 4.9% | 4.6% | 4.5% | 4.2% |
 | Pre_norm | 83.6% | 89.5% | 80.2% | 30.7% | 6.1% | 0.3% | 0.0% |
 
+### Stable model (LR=2e-3, d=128 — SOTA)
+
+| Intervention | 16 | 32 | 64 | 128 | 256 | 512 | 1024 |
+|---|---|---|---|---|---|---|---|
+| Baseline | 81.8% | 88.5% | 92.5% | 95.3% | 97.3% | 98.5% | 98.9% |
+| Damping α=0.9 | 81.6% | 88.1% | 92.3% | 95.0% | 96.9% | 98.2% | 98.7% |
+| Damping α=0.8 | 81.0% | 87.5% | 91.7% | 94.5% | 96.3% | 97.8% | 98.5% |
+| Damping α=0.7 | 80.2% | 86.9% | 91.1% | 94.0% | 95.9% | 97.2% | 97.9% |
+| Damping α=0.5 | 76.8% | 84.5% | 89.0% | 92.4% | 94.6% | 95.6% | 94.1% |
+| Pred_scale β=0.5 | 30.5% | 33.5% | 34.8% | 35.9% | 36.7% | 36.8% | 36.2% |
+| Pred_scale β=0.3 | 4.5% | 4.6% | 4.6% | 4.6% | 4.6% | 4.5% | 4.3% |
+| Pred_scale β=0.1 | 1.2% | 0.8% | 0.8% | 0.8% | 0.8% | 0.8% | 0.6% |
+| Pre_norm | 81.3% | 88.5% | 92.8% | 95.3% | 96.7% | 51.5% | 16.7% |
+
 ### Intervention Analysis
 
 1. **Damping delays collapse proportionally but doesn't prevent it.** For LR=3e-3: α=0.5 recovers baseline-equivalent 88.3% at 64 iters (vs 39.9%), effectively shifting the collapse point by ~1 octave. For d=192: α=0.5 peaks at 91.3% at 128 (vs 85.9% baseline) and holds 70.1% at 256 (vs 23.3%). But all damped models still collapse at higher iter counts. The oscillation is merely slowed, not eliminated.
 
 2. **Prediction scaling is destructive for LR=3e-3 but interesting for d=192.** On LR=3e-3, even β=0.5 drops accuracy from 82% to 27% at 16 iters — the feedback loop is essential. But on d=192, β=0.5 trades peak accuracy (82.5% vs 94.3% at 64) for much gentler degradation (35.5% vs 3.5% at 1024). The model becomes worse but more stable.
 
-3. **Pre-output normalization accelerates collapse.** Pre_norm makes both models worse, not better. On d=192: 80.2% at 64 (vs 94.3%), 0.0% at 1024 (vs 3.5%). Bounding logit growth removes useful signal.
+3. **Pre-output normalization actively introduces collapse.** Pre_norm makes all models worse — even the stable SOTA model collapses with pre_norm (96.7% at 256, then 51.5% at 512, 16.7% at 1024). On d=192: 0.0% at 1024 (vs 3.5%). LayerNorm before the output head destroys information the model uses for stable convergence.
 
-4. **Test-time interventions can't fix a non-contractive iteration map.** The collapse is baked into the trained weights. Damping just adds friction; pred_scale breaks the mechanism; pre_norm removes information. None address the root cause: the learned function f isn't contractive at these operating points.
+4. **Damping on the stable model just slows convergence.** α=0.9: 98.7% at 1024 (vs 98.9% baseline). α=0.5: peaks at 95.6% at 512 then drops to 94.1% at 1024 — heavy damping makes even the stable model degrade. Confirms damping is pure friction, not a mechanism fix.
+
+5. **Test-time interventions can't fix a non-contractive iteration map.** The collapse is baked into the trained weights. Damping just adds friction; pred_scale breaks the mechanism; pre_norm removes information. None address the root cause.
+
+## Jacobian Spectral Radius Analysis
+
+Estimated the spectral radius (dominant eigenvalue magnitude) of the Jacobian df/dh at various operating points using power iteration with finite-difference JVP (100 power iterations, 50 puzzles, eps=1e-3). Script: `eval_spectral_radius.py`.
+
+| Model | SR@16 | SR@32 | SR@64 | SR@128 | SR@256 | SR Trend |
+|---|---|---|---|---|---|---|
+| LR=2e-3 (stable) | 55.8 | 40.6 | 29.0 | 21.0 | 14.0 | Decreasing |
+| LR=3e-3 (collapse@64) | 73.0 | 64.0 | 59.9 | 63.0 | 65.1 | Flat/increasing |
+| LR=1e-3 (stagnation) | 35.5 | 28.8 | 27.8 | 26.9 | 26.2 | Flat (lowest) |
+| d=192 (collapse@128) | 88.0 | 69.8 | 67.1 | 76.9 | 79.2 | Decreasing then increasing |
+
+Key findings:
+1. **ALL models have SR >> 1 everywhere** — even the stable SOTA model (SR=14-56). The standard linear stability condition (SR < 1 ⟹ stable) does not apply. Convergence is entirely nonlinear.
+2. **The SR trend predicts stability, not the SR magnitude.** The stable model's SR decreases monotonically (56→14), approaching contractivity. Collapsing models' SR stays flat (LR=3e-3: 60-73) or rebounds (d=192: 67→79 past iter 64). The monotonic decrease in SR is the signature of approaching a nonlinear basin of attraction.
+3. **LR=1e-3 (stagnation) has the lowest SR** (26-36) — more "locally contractive" than the stable model, yet performs worse. It converges too aggressively to a suboptimal fixed point. The stable model's higher SR at early iterations means it explores more before settling.
+4. **d=192's SR rebounds at the collapse point.** SR decreases from 88→67 (iters 16-64) then increases to 79 at 128 — exactly where accuracy collapses. The iteration map becomes less contractive at the point where the model needs stability most.
+
+**Implication:** The iteration dynamics are fundamentally nonlinear. The model doesn't converge because the Jacobian has eigenvalues < 1 — it converges because the nonlinear trajectory enters a basin of attraction despite local instability. The "flat minimum" hypothesis from training may be about the geometry of these basins, not linear contractivity.
 
 ## Key Findings
 
@@ -180,5 +217,6 @@ Scripts: `eval_interventions.py`, `modal_eval_interventions.py`.
 9. **3-phase curriculum works if you keep phase durations** — dropping Medium+ with original durations (40K total) is stable at 95.9%, but redistributing to maintain 50K steps collapses because the LR schedule decays slower.
 10. **Smaller model (d=96) peaks early then degrades** — 87.8% at 128 iters, slowly degrades to 73.2% at 2048. Not enough capacity for clean convergence.
 11. **Q-head (learned halt) failed** — loss competition degrades main task.
-12. **Test-time interventions can't fix collapse** — damping (under-relaxation) delays collapse proportionally (α=0.5 shifts it by ~1 octave) but all damped models still collapse. Prediction scaling is destructive for d=128 but trades peak accuracy for gentler degradation on d=192 (35.5% vs 3.5% at 1024). Pre-output LayerNorm makes things worse. The collapse is baked into the weights — no test-time fix can make a non-contractive map contractive.
-13. **SOTA: 98.9%** at 1024 test iters with LR=2e-3 (exp_baseline_lr2e3). Stable at 98.8% at 2048.
+12. **Test-time interventions can't fix collapse** — damping delays collapse by ~1 octave but all damped models still collapse. Pre-output LayerNorm actively introduces collapse even on the stable model (96.7%→51.5% at 256→512). Pred scaling is destructive. On the stable model, damping just slows convergence (α=0.5 peaks at 95.6%@512, drops to 94.1%@1024).
+13. **Jacobian spectral radius >> 1 for ALL models, including stable** — SR ranges from 14-88 across all models at all operating points. Linear stability theory (SR<1) does not apply. What differentiates stable from collapsing models is the SR *trend*: stable model's SR decreases monotonically (56→14); collapsing models stay flat or rebound. Convergence is entirely nonlinear — the model enters a basin of attraction despite local instability.
+14. **SOTA: 98.9%** at 1024 test iters with LR=2e-3 (exp_baseline_lr2e3). Stable at 98.8% at 2048.
