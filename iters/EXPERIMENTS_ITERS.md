@@ -32,6 +32,8 @@ See the main [EXPERIMENTS.md](../EXPERIMENTS.md) for full results.
 - `exp_3phase_50k.py` - 3-phase curriculum, 50K steps (collapses)
 - `exp_qhead.py` - Q-head learned halt signal (16 iters, negative result)
 - `exp_qhead_32.py` - Q-head learned halt signal (32 iters, negative result)
+- `eval_interventions.py` - Test-time interventions (damping, pred scaling, pre-norm)
+- `modal_eval_interventions.py` - Modal wrapper for intervention sweeps
 - `modal_eval.py` - Modal wrapper for running eval_more_iters on GPU
 
 ## Test-Time Iteration Scaling
@@ -122,6 +124,49 @@ Stable test-time iteration scaling (more iters → monotonically better accuracy
 
 The overall picture: stability comes from landing in a flat minimum where f is naturally contractive. Gradient noise (BS), learning rate, and model capacity all control whether training finds that minimum. It's a narrow target — most hyperparameter changes break it.
 
+## Test-Time Interventions (No Retraining)
+
+Test-time modifications to the forward pass to see if iteration collapse can be fixed without retraining.
+Scripts: `eval_interventions.py`, `modal_eval_interventions.py`.
+
+### LR=3e-3 model (d=128, collapses at 64 iters)
+
+| Intervention | 16 | 32 | 64 | 128 | 256 | 1024 |
+|---|---|---|---|---|---|---|
+| Baseline | 82.1% | 88.5% | 39.9% | 7.1% | 1.7% | 0.4% |
+| Damping α=0.9 | 81.8% | 88.1% | 44.6% | 8.3% | 1.7% | 0.5% |
+| Damping α=0.8 | 81.0% | 87.5% | 52.3% | 9.5% | 2.2% | 0.5% |
+| Damping α=0.7 | 80.1% | 86.8% | 67.6% | 11.8% | 2.6% | 0.6% |
+| Damping α=0.5 | 76.7% | 84.5% | 88.3% | 18.9% | 4.6% | 0.6% |
+| Pred_scale β=0.5 | 27.2% | 31.0% | 24.1% | 7.3% | 3.4% | 0.5% |
+| Pred_scale β=0.3 | 0.5% | 0.2% | 0.2% | 0.1% | 0.0% | 0.0% |
+| Pred_scale β=0.1 | 0.1% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+| Pre_norm | 81.1% | 87.7% | 18.7% | 3.7% | 0.9% | 0.1% |
+
+### d=192 model (LR=2e-3, collapses at 128 iters)
+
+| Intervention | 16 | 32 | 64 | 128 | 256 | 512 | 1024 |
+|---|---|---|---|---|---|---|---|
+| Baseline | 84.4% | 90.8% | 94.3% | 85.9% | 23.3% | 6.9% | 3.5% |
+| Damping α=0.9 | 84.2% | 90.4% | 94.1% | 87.6% | 28.3% | 6.0% | 3.8% |
+| Damping α=0.8 | 83.6% | 89.9% | 93.6% | 88.7% | 34.5% | 6.0% | 3.6% |
+| Damping α=0.7 | 82.7% | 89.1% | 93.0% | 90.0% | 45.3% | 7.5% | 4.0% |
+| Damping α=0.5 | 79.8% | 86.8% | 91.0% | 91.3% | 70.1% | 12.5% | 4.6% |
+| Pred_scale β=0.5 | 66.6% | 76.8% | 82.5% | 80.4% | 51.2% | 44.7% | 35.5% |
+| Pred_scale β=0.3 | 27.6% | 31.4% | 33.2% | 31.8% | 26.2% | 24.6% | 24.0% |
+| Pred_scale β=0.1 | 4.5% | 4.8% | 4.9% | 4.9% | 4.6% | 4.5% | 4.2% |
+| Pre_norm | 83.6% | 89.5% | 80.2% | 30.7% | 6.1% | 0.3% | 0.0% |
+
+### Intervention Analysis
+
+1. **Damping delays collapse proportionally but doesn't prevent it.** For LR=3e-3: α=0.5 recovers baseline-equivalent 88.3% at 64 iters (vs 39.9%), effectively shifting the collapse point by ~1 octave. For d=192: α=0.5 peaks at 91.3% at 128 (vs 85.9% baseline) and holds 70.1% at 256 (vs 23.3%). But all damped models still collapse at higher iter counts. The oscillation is merely slowed, not eliminated.
+
+2. **Prediction scaling is destructive for LR=3e-3 but interesting for d=192.** On LR=3e-3, even β=0.5 drops accuracy from 82% to 27% at 16 iters — the feedback loop is essential. But on d=192, β=0.5 trades peak accuracy (82.5% vs 94.3% at 64) for much gentler degradation (35.5% vs 3.5% at 1024). The model becomes worse but more stable.
+
+3. **Pre-output normalization accelerates collapse.** Pre_norm makes both models worse, not better. On d=192: 80.2% at 64 (vs 94.3%), 0.0% at 1024 (vs 3.5%). Bounding logit growth removes useful signal.
+
+4. **Test-time interventions can't fix a non-contractive iteration map.** The collapse is baked into the trained weights. Damping just adds friction; pred_scale breaks the mechanism; pre_norm removes information. None address the root cause: the learned function f isn't contractive at these operating points.
+
 ## Key Findings
 
 1. **BS=2048 is the sweet spot for iteration stability** — BS=4096 collapses at 48 iters, BS=1024 collapses at 256 iters, BS=2048 never collapses even at 2048 iters. Likely due to flatter minima from gradient noise.
@@ -135,4 +180,5 @@ The overall picture: stability comes from landing in a flat minimum where f is n
 9. **3-phase curriculum works if you keep phase durations** — dropping Medium+ with original durations (40K total) is stable at 95.9%, but redistributing to maintain 50K steps collapses because the LR schedule decays slower.
 10. **Smaller model (d=96) peaks early then degrades** — 87.8% at 128 iters, slowly degrades to 73.2% at 2048. Not enough capacity for clean convergence.
 11. **Q-head (learned halt) failed** — loss competition degrades main task.
-12. **SOTA: 98.9%** at 1024 test iters with LR=2e-3 (exp_baseline_lr2e3). Stable at 98.8% at 2048.
+12. **Test-time interventions can't fix collapse** — damping (under-relaxation) delays collapse proportionally (α=0.5 shifts it by ~1 octave) but all damped models still collapse. Prediction scaling is destructive for d=128 but trades peak accuracy for gentler degradation on d=192 (35.5% vs 3.5% at 1024). Pre-output LayerNorm makes things worse. The collapse is baked into the weights — no test-time fix can make a non-contractive map contractive.
+13. **SOTA: 98.9%** at 1024 test iters with LR=2e-3 (exp_baseline_lr2e3). Stable at 98.8% at 2048.

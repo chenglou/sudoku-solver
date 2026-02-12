@@ -6,4 +6,5 @@ __pycache__/
 data/
 logs/
 runs/
+viz/output/
 .DS_Store
