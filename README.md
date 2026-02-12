@@ -29,10 +29,10 @@ modal token new  # authenticate (one-time)
 # Train SOTA (detached so it survives terminal close)
 modal run --detach modal_run.py --exp iters.exp_baseline_lr2e3
 
-# Monitor progress
-modal app logs <app-id>  # app-id shown when you launch
+# Check outputs (modal app logs only works while app is active)
+modal volume ls sudoku-outputs
 
-# List/download outputs
+# Download logs and outputs
 modal volume ls sudoku-outputs
 modal volume get sudoku-outputs model_baseline_lr2e3.pt .
 
@@ -57,7 +57,8 @@ tensorboard --logdir runs/
 - `iters/exp_baseline_lr2e3.py` - **SOTA**: 2D RoPE, 800K params, BS=2048, LR=2e-3 (98.9% at 1024 test iters)
 - `checkpoint_utils.py` - Checkpoint save/resume utilities (Modal preemption-safe)
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
-- `iters/` - Iteration experiments: 32-iter training, adaptive stopping, fixed-point analysis, and [results](iters/EXPERIMENTS_ITERS.md)
+- `iters/` - Iteration experiments: scaling, interventions, spectral radius analysis, and [results](iters/EXPERIMENTS_ITERS.md)
+- `viz/` - Diagnostic visualizations: collapse diagnostics, iteration scaling plots
 - `analyze_failures_new.py` - Per-iteration failure analysis (convergence, oscillation, per-position stats)
 - `test_data.py` - Test data loader using test.csv (matches nano-trm for fair comparison)
 - `EXPERIMENTS.md` - Full experiment log and results
@@ -87,4 +88,4 @@ test_data = load_test_csv(max_per_bucket=5000, device=device)
 | exp_baseline_lr2e3 (16 test iters) | 800K | ~2h40m (H200) | 81.8% |
 | [TRM](https://github.com/SamsungSAILMontreal/TinyRecursiveModels) (reference) | 7M | ~18h (L40S) | ~87% |
 
-The model uses sudoku-agnostic 2D RoPE (only knows it's a grid, no constraint structure). Training with BS=2048 produces a model that scales monotonically with test-time iterations — running 1024 iterations at test time (vs 16 during training) yields **98.9%** with no retraining and no collapse. LR is the most important hyperparameter for iteration scaling: LR=2e-3 > 1.5e-3 >> 1e-3 (collapses). See [iters/](iters/EXPERIMENTS_ITERS.md) for the full iteration scaling table, [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis, [pos_embedding/](pos_embedding/EXPERIMENTS_POS.md) for positional encoding comparisons.
+The model uses sudoku-agnostic 2D RoPE (only knows it's a grid, no constraint structure). Training with BS=2048 produces a model that scales monotonically with test-time iterations — running 1024 iterations at test time (vs 16 during training) yields **98.9%** with no retraining and no collapse. LR=2e-3 is the sharp optimum: higher LRs (2.5e-3, 3e-3) cause oscillatory collapse, lower LRs (1e-3) stagnate at suboptimal fixed points. Jacobian spectral radius is >> 1 for all models including the stable one — convergence is entirely nonlinear (basin of attraction, not linear contractivity). See [iters/](iters/EXPERIMENTS_ITERS.md) for the full iteration scaling table, [EXPERIMENTS.md](EXPERIMENTS.md) for detailed analysis, [pos_embedding/](pos_embedding/EXPERIMENTS_POS.md) for positional encoding comparisons.
