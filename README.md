@@ -58,7 +58,7 @@ tensorboard --logdir runs/
 - `checkpoint_utils.py` - Checkpoint save/resume utilities (Modal preemption-safe)
 - `eval_extreme.py` - Evaluate on sudoku-extreme benchmark
 - `iters/` - Iteration experiments: scaling, interventions, spectral radius analysis, and [results](iters/EXPERIMENTS_ITERS.md)
-- `viz/` - Diagnostic visualizations: collapse diagnostics, iteration scaling plots
+- `viz/` - Visualizations: attention patterns, head specialization, confidence/entropy evolution, collapse diagnostics across models, iteration scaling curves
 - `analyze_failures_new.py` - Per-iteration failure analysis (convergence, oscillation, per-position stats)
 - `test_data.py` - Test data loader using test.csv (matches nano-trm for fair comparison)
 - `EXPERIMENTS.md` - Full experiment log and results
